@@ -27,9 +27,10 @@ public class MucRoomControllerTest {
     public void save() {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         params.add("roomUser","yuanyong@sunrun");
-        params.add("roomName","test");
+        params.add("roomName","test2");
         params.add("naturalName","dds的");
         params.add("description","hahah");
+        params.add("members","user2@sunrun,zhaoyi@sunrun");
         params.add("admins","user1@sunrun,user2@sunrun");
         MvcResult mvcResult = null;
         try {
@@ -69,7 +70,7 @@ public class MucRoomControllerTest {
     @Test
     public void addMember() {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
-        params.add("roomName","demo2222");
+        params.add("roomName","test");
         params.add("roles","members");
         params.add("name","user13@sunrun");
         MvcResult mvcResult = null;
@@ -129,10 +130,30 @@ public class MucRoomControllerTest {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         params.add("pageNum","1");
         params.add("pageSize","1");
-        params.add("search","d");
+        params.add("search","test");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/query").params(params))
+                    .andExpect(MockMvcResultMatchers.status().isOk())
+                    .andReturn();
+            Gson gson = new Gson();
+            ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
+            System.out.println(returnData);
+            Assert.assertTrue(returnData.isSuccess());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void addGroupRoleToChatRoom() {
+        MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
+        params.add("roomName","test");
+        params.add("name","哈哈");
+        params.add("roles","admins");
+        MvcResult mvcResult = null;
+        try {
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/group/role").params(params))
                     .andExpect(MockMvcResultMatchers.status().isOk())
                     .andReturn();
             Gson gson = new Gson();

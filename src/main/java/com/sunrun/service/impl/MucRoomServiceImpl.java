@@ -20,6 +20,7 @@ import org.springframework.web.client.RestTemplate;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
 
 import java.util.List;
 
@@ -91,5 +92,25 @@ public class MucRoomServiceImpl implements MucRoomService {
         List<ChatRoom> list = restApiUtil.getAllChatRooms(serviceName, type, search);
         PageInfo<ChatRoom> info = new PageInfo<>(list);
         return info;
+    }
+
+    @Override
+    public boolean addGroupRoleToChatRoom(String roomName, String serviceName, String name, Role role) throws NotFindRoomException {
+        ChatRoom chatRoom = restApiUtil.getChatRoom(roomName, serviceName);
+        if (chatRoom == null) {
+            throw new NotFindRoomException();
+        }
+        return restApiUtil.addGroupRoleToChatRoom(roomName, serviceName, name, role);
+    }
+
+    @Override
+    public void findChatRoomsByUserName(String userName) {
+        String sql="from ofmucroom r WHERE r.roomID in (select )";
+        String str = "SELECT * FROM ofmucroom r WHERE r.roomID in (select roomID as roomID from ofmucmember m WHERE m.jid = 'yuanyong@sunrun' UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = 'yuanyong@sunrun')";
+        String good="SELECT * FROM `ofmucroom` r INNER JOIN (select roomID as roomID from ofmucmember m WHERE m.jid = 'yuanyong@sunrun' UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = 'yuanyong@sunrun') t2 on r.roomID = t2.roomID";
+        Query query = entityManager.createQuery(sql);
+        query.setParameter(1,userName);
+        List resultList = query.getResultList();
+        entityManager.close();
     }
 }

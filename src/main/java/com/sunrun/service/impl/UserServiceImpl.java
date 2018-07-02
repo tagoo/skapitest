@@ -5,10 +5,13 @@ import com.sunrun.dao.RosterRepository;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
+import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
 import com.sunrun.dao.UserRepository;
 import com.sunrun.security.Operate;
 import com.sunrun.service.UserService;
+import com.sunrun.utils.RestApiUtil;
+import com.sunrun.utils.helper.UserData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +21,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.Resource;
 import java.util.List;
 
 
@@ -33,6 +37,8 @@ public class UserServiceImpl implements UserService {
     private IamConfig iamConfig;
     @Autowired
     private Operate operate;
+    @Resource
+    private RestApiUtil restApiUtil;
     @Override
     @Cacheable(value ="user",key = "#user.userName")
     @Transactional
@@ -77,4 +83,38 @@ public class UserServiceImpl implements UserService {
         return  operate.synchronizeData();
     }
 
+    @Override
+    public UserData getUser(String userName) {
+        return restApiUtil.getUser(userName);
+    }
+
+    @Override
+    public UserData createUser(UserData userData) throws NameAlreadyExistException {
+        UserData user = restApiUtil.getUser(userData.getUsername());
+        if (user != null) {
+            throw new NameAlreadyExistException();
+        }
+        if(restApiUtil.creatUser(userData)) {
+            return restApiUtil.getUser(userData.getUsername());
+        }
+        return null;
+    }
+
+    @Override
+    public boolean updateUser(UserData userData) throws NotFindUserException {
+        UserData user = restApiUtil.getUser(userData.getUsername());
+        if (user == null) {
+            throw new NotFindUserException();
+        }
+        return restApiUtil.updateUser(userData);
+    }
+
+    @Override
+    public boolean delete(String userName) throws NotFindUserException {
+        UserData user = restApiUtil.getUser(userName);
+        if (user == null) {
+            throw new NotFindUserException();
+        }
+        return restApiUtil.deleteUser(userName);
+    }
 }

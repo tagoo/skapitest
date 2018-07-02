@@ -13,10 +13,7 @@ import com.sunrun.utils.helper.ChatRoom;
 import com.sunrun.utils.helper.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -164,6 +161,39 @@ public class MucRoomController {
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
+    }
 
+    @RequestMapping("group/role")
+    public ReturnData addGroupRoleToChatRoom(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                      @RequestParam(name = "roles", defaultValue = "members") String roles,
+                                      @RequestParam(name = "roomName",required = false) String roomName,
+                                      @RequestParam(name = "serviceName", required = false) String serviceName,
+                                      @RequestParam(name = "name",required = false) String name){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        if (!StringUtils.hasText(roomName)){
+            noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
+        }
+        if (!StringUtils.hasText(name)) {
+            noticeMessage = NoticeMessage.GROUP_NAME_IS_EMPTY;
+        }
+        try {
+            if (mucRoomService.addGroupRoleToChatRoom(roomName,serviceName,name,Role.valueOf(roles))){
+                noticeMessage = NoticeMessage.SUCCESS;
+            }
+        } catch (NotFindRoomException e) {
+            noticeMessage = NoticeMessage.NOT_FIND_ROOM;
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+    }
+
+    @GetMapping("ownquery/{userName}")
+    public ReturnData getOwnerChatRooms(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                        @PathVariable(name = "userName") String userName) {
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        if (!StringUtils.hasText(userName)){
+            noticeMessage = NoticeMessage.USERNAME_IS_NULL;
+        }
+        mucRoomService.findChatRoomsByUserName(userName);
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 }

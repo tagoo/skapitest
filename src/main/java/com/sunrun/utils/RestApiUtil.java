@@ -11,6 +11,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import com.sunrun.common.config.RestApiConfig;
+import com.sunrun.entity.User;
 import com.sunrun.utils.helper.*;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -108,6 +109,14 @@ public class RestApiUtil {
         return url.toString();
     }
 
+    public String getUserUrlWithParams(String index, String... pathParams) {
+        StringBuilder url = new StringBuilder(getUrl(index));
+        for (int i= 0 ; i < pathParams.length; i++) {
+            url.append("/" + pathParams[i]);
+        }
+        return url.toString();
+    }
+
 
     public boolean addMember(String roomName, String serviceName, Role roles, String jid) {
         HttpHeaders httpHeaders = getHttpHeaders();
@@ -147,5 +156,53 @@ public class RestApiUtil {
         }
         ResponseEntity<RoomData> result = restTemplate.exchange(url.toString(), HttpMethod.GET, requestEntity, RoomData.class);
         return result.getBody().getChatRooms();
+    }
+
+    public boolean addGroupRoleToChatRoom(String roomName, String serviceName, String groupName, Role role){
+        HttpHeaders httpHeaders = getHttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_XML);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        ResponseEntity<String> result = restTemplate.postForEntity(getUrlWithParams("room", serviceName, roomName, role.name(), "group", groupName), requestEntity, String.class);
+        return result.getStatusCode() == HttpStatus.CREATED;
+    }
+
+    public UserData getUser(String userName) {
+        HttpHeaders httpHeaders = getHttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON_UTF8);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        try {
+            ResponseEntity<UserData> users = restTemplate.exchange(getUserUrlWithParams("users", userName), HttpMethod.GET, requestEntity, UserData.class);
+            return users.getBody();
+        } catch (RestClientException e) {
+            if (e.getMessage().contains("404 Not Found")){
+                return null;
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public boolean creatUser(UserData userData) {
+        HttpHeaders httpHeaders = getHttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, httpHeaders);
+        ResponseEntity<String> result = restTemplate.postForEntity(getUrl("users"), requestEntity, String.class);
+        return result.getStatusCode() == HttpStatus.CREATED;
+    }
+
+    public boolean updateUser(UserData userData) {
+        HttpHeaders httpHeaders = getHttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, httpHeaders);
+        ResponseEntity<String> result = restTemplate.exchange(getUserUrlWithParams("users",userData.getUsername()), HttpMethod.PUT, requestEntity, String.class);
+        return result.getStatusCode() == HttpStatus.OK;
+    }
+
+    public boolean deleteUser(String userName) {
+        HttpHeaders httpHeaders = getHttpHeaders();
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        ResponseEntity<String> result = restTemplate.exchange(getUserUrlWithParams("users",userName), HttpMethod.DELETE, requestEntity, String.class);
+        return  result.getStatusCode() == HttpStatus.OK;
     }
 }

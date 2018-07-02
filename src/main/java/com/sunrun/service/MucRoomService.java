@@ -21,4 +21,8 @@ public interface MucRoomService {
     boolean delete(String roomName, String serviceName) throws NotFindRoomException;
 
     PageInfo<ChatRoom> getChatRoomList(String serviceName, String type, String search, Pagination pagination);
+
+    boolean addGroupRoleToChatRoom(String roomName, String serviceName, String name, Role role) throws NotFindRoomException;
+
+    void findChatRoomsByUserName(String userName);
 }

@@ -78,7 +78,11 @@ public enum NoticeMessage {
 
         ROOM_NAME_ALREADY_EXIST(1035,"该群名已经存在" ,"The room name already exists" ),
 
-        NOT_FIND_ROOM(1036,"该群不存在","The room does not exist");
+        NOT_FIND_ROOM(1036,"该群不存在","The room does not exist"),
+
+        GROUP_NAME_IS_EMPTY(1037,"组名不可为空" , "The group name is empty."),
+
+        USERNAME_ALREADY_EXIST(1038, "该用户名已经存在", "The username already exists.");
         private int code;
         private String cnMessage;
         private String enMessage;
