@@ -72,7 +72,7 @@ public class MucRoomControllerTest {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         params.add("roomName","test");
         params.add("roles","members");
-        params.add("name","user13@sunrun");
+        params.add("name","yuanyong@sunrun");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/member/add").params(params))
@@ -154,6 +154,25 @@ public class MucRoomControllerTest {
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/group/role").params(params))
+                    .andExpect(MockMvcResultMatchers.status().isOk())
+                    .andReturn();
+            Gson gson = new Gson();
+            ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
+            System.out.println(returnData);
+            Assert.assertTrue(returnData.isSuccess());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void getOwnerChatRooms() {
+        MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
+        params.add("pageSize","2");
+        params.add("pageNum","1");
+        MvcResult mvcResult = null;
+        try {
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/room/ownquery/yuanyong@sunrun").params(params))
                     .andExpect(MockMvcResultMatchers.status().isOk())
                     .andReturn();
             Gson gson = new Gson();

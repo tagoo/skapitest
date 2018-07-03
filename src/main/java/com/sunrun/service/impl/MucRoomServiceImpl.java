@@ -3,6 +3,9 @@ package com.sunrun.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.sunrun.common.Pagination;
+import com.sunrun.dao.MucRoomRepository;
+import com.sunrun.entity.MucRoom;
+import com.sunrun.exception.AlreadyExistException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindRoomException;
 import com.sunrun.service.MucRoomService;
@@ -30,6 +33,8 @@ public class MucRoomServiceImpl implements MucRoomService {
     @Resource
     private RestTemplate restTemplate;
 
+    @Autowired
+    private MucRoomRepository mucRoomRepository;
     @Resource
     private RestApiUtil restApiUtil;
     @Autowired
@@ -65,8 +70,17 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
-    public boolean addMember(String roomName, String serviceName, Role roles, String name) {
-        return  restApiUtil.addMember(roomName,serviceName,roles,name);
+    public boolean addMember(String roomName, String serviceName, Role roles, String name) throws AlreadyExistException, NotFindRoomException {
+        ChatRoom chatRoom = restApiUtil.getChatRoom(roomName, serviceName);
+        if (chatRoom != null) {
+            if (chatRoom.getOwners().contains(name)) {
+                throw new AlreadyExistException();
+            } else {
+                return  restApiUtil.addMember(roomName,serviceName,roles,name);
+            }
+        } else {
+            throw new NotFindRoomException();
+        }
     }
 
     @Override
@@ -104,13 +118,18 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
-    public void findChatRoomsByUserName(String userName) {
-        String sql="from ofmucroom r WHERE r.roomID in (select )";
-        String str = "SELECT * FROM ofmucroom r WHERE r.roomID in (select roomID as roomID from ofmucmember m WHERE m.jid = 'yuanyong@sunrun' UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = 'yuanyong@sunrun')";
-        String good="SELECT * FROM `ofmucroom` r INNER JOIN (select roomID as roomID from ofmucmember m WHERE m.jid = 'yuanyong@sunrun' UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = 'yuanyong@sunrun') t2 on r.roomID = t2.roomID";
-        Query query = entityManager.createQuery(sql);
-        query.setParameter(1,userName);
-        List resultList = query.getResultList();
+    public List<MucRoom> findChatRoomsByUserName(String jid,Pagination pagination) {
+        //List<MucRoom> chatRoomsByUserName = mucRoomRepository.findChatRoomsByJid(jid);
+        StringBuilder sql = new StringBuilder("SELECT r.* FROM ofmucroom r INNER JOIN (SELECT roomID as roomID from ofmucmember m WHERE m.jid = :jid UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = :jid) t2 on r.roomID = t2.roomID");
+        if (pagination != null) {
+            sql.append(" limit ");
+            sql.append((pagination.getPageNum()-1) * pagination.getPageSize());
+            sql.append("," + pagination.getPageSize());
+        }
+        Query query = entityManager.createNativeQuery(sql.toString(),MucRoom.class);
+        query.setParameter("jid",jid);
+        List<MucRoom> resultList = query.getResultList();
         entityManager.close();
+        return resultList;
     }
 }

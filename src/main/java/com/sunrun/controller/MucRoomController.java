@@ -6,6 +6,7 @@ import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnData;
 import com.sunrun.entity.MucRoom;
+import com.sunrun.exception.AlreadyExistException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindRoomException;
 import com.sunrun.service.MucRoomService;
@@ -90,9 +91,15 @@ public class MucRoomController {
         } else if (!StringUtils.hasText(name)) {
             noticeMessage = NoticeMessage.USERNAME_IS_NULL;
         } else {
-           if (mucRoomService.addMember(roomName,serviceName, Role.valueOf(roles),name)){
-               noticeMessage = NoticeMessage.SUCCESS;
-           }
+            try {
+                if (mucRoomService.addMember(roomName,serviceName, Role.valueOf(roles),name)){
+                    noticeMessage = NoticeMessage.SUCCESS;
+                }
+            } catch (AlreadyExistException e) {
+                noticeMessage = NoticeMessage.USER_REPEAT_ROOM_MEMBER;
+            } catch (NotFindRoomException e) {
+                noticeMessage = NoticeMessage.NOT_FIND_ROOM;
+            }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
@@ -188,12 +195,25 @@ public class MucRoomController {
 
     @GetMapping("ownquery/{userName}")
     public ReturnData getOwnerChatRooms(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                        @RequestParam(name = "pageNum", required = false) Integer pageNum,
+                                        @RequestParam(name = "pageSize", required = false) Integer pageSize,
                                         @PathVariable(name = "userName") String userName) {
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        List<MucRoom> chatRoomsByUserName = null;
+        Pagination pagination = null;
         if (!StringUtils.hasText(userName)){
             noticeMessage = NoticeMessage.USERNAME_IS_NULL;
+        } else {
+            if (pageNum != null && pageNum > 0 && pageSize != null && pageSize > 0) {
+                pagination = new Pagination(pageNum, pageSize);
+            }
+            try {
+                chatRoomsByUserName = mucRoomService.findChatRoomsByUserName(userName,pagination);
+                noticeMessage = NoticeMessage.SUCCESS;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
-        mucRoomService.findChatRoomsByUserName(userName);
-        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, chatRoomsByUserName);
     }
 }

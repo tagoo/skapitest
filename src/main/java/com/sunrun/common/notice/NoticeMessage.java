@@ -32,7 +32,7 @@ public enum NoticeMessage {
 
         NOT_BELONG_TO_ROOM(1011, "用户不属于此房间", "Error, not a group member"),
 
-        USER_REPEAT_ROOM_MEMBER(1012, "用户已经是房间成员", "Error, already a group member"),
+        USER_REPEAT_ROOM_MEMBER(1012, "用户是房间拥有者", "Error, already a room owner"),
 
         LONGITUDES_OR_LATITUDES_IS_NULL(1013, "用户名,经度或纬度为空", "Empty user name, longitude or latitude"),
 
