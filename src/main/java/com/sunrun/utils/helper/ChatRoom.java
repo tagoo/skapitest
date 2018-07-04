@@ -8,6 +8,7 @@ import java.util.*;
 
 public class ChatRoom {
     private String roomName;
+    private String roomID;
     private String description;
     private String password;
     private String subject;
@@ -254,10 +255,15 @@ public class ChatRoom {
         this.outcasts = outcasts;
     }
 
+    public String getRoomID() {
+        return roomID;
+    }
+
     @Override
     public String toString() {
         return "ChatRoom{" +
                 "roomName='" + roomName + '\'' +
+                ", roomID='" + roomID + '\'' +
                 ", description='" + description + '\'' +
                 ", password='" + password + '\'' +
                 ", subject='" + subject + '\'' +

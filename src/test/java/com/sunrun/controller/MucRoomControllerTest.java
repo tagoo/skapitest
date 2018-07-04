@@ -72,7 +72,7 @@ public class MucRoomControllerTest {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         params.add("roomName","test");
         params.add("roles","members");
-        params.add("name","yuanyong@sunrun");
+        params.add("name","mm11@sunrun");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/member/add").params(params))
@@ -178,6 +178,42 @@ public class MucRoomControllerTest {
             Gson gson = new Gson();
             ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
             System.out.println(returnData);
+            Assert.assertTrue(returnData.isSuccess());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void updateNickName() {
+        MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
+        MvcResult mvcResult = null;
+        params.add("nickName","我是谁");
+        params.add("roomID","6");
+        try {
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/member/update/zhaoyi@sunrun1").params(params))
+                    .andExpect(MockMvcResultMatchers.status().isOk())
+                    .andReturn();
+            Gson gson = new Gson();
+            ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
+            System.out.println(mvcResult.getResponse().getContentAsString());
+            Assert.assertTrue(returnData.isSuccess());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void getChatRoom() {
+        MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
+        MvcResult mvcResult = null;
+        try {
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/room/test").params(params))
+                    .andExpect(MockMvcResultMatchers.status().isOk())
+                    .andReturn();
+            Gson gson = new Gson();
+            ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
+            System.out.println(mvcResult.getResponse().getContentAsString());
             Assert.assertTrue(returnData.isSuccess());
         } catch (Exception e) {
             e.printStackTrace();

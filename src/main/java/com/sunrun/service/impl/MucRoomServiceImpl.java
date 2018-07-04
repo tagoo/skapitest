@@ -3,21 +3,28 @@ package com.sunrun.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.sunrun.common.Pagination;
+import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.MucRoomRepository;
 import com.sunrun.entity.MucRoom;
+import com.sunrun.entity.MucRoomMember;
+import com.sunrun.entity.model.MucRoomMemberKey;
 import com.sunrun.exception.AlreadyExistException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindRoomException;
 import com.sunrun.service.MucRoomService;
 import com.sunrun.utils.RestApiUtil;
 import com.sunrun.utils.helper.ChatRoom;
+import com.sunrun.utils.helper.Property;
 import com.sunrun.utils.helper.Role;
+import com.sunrun.utils.helper.UserData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
@@ -26,15 +33,15 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Service
 public class MucRoomServiceImpl implements MucRoomService {
-    @Resource
-    private RestTemplate restTemplate;
-
     @Autowired
     private MucRoomRepository mucRoomRepository;
+    @Autowired
+    private MucRoomMemberRepository mucRoomMemberRepository;
     @Resource
     private RestApiUtil restApiUtil;
     @Autowired
@@ -60,8 +67,6 @@ public class MucRoomServiceImpl implements MucRoomService {
     @Override
     public boolean update(ChatRoom chatRoom, String serviceName) throws NotFindRoomException {
         ChatRoom room = restApiUtil.getChatRoom(chatRoom.getRoomName(), serviceName);
-        String roomOccupants = restApiUtil.getRoomOccupants(chatRoom.getRoomName(), serviceName);
-        String roomParticipants = restApiUtil.getRoomParticipants(chatRoom.getRoomName(), serviceName);
         if (room != null) {
            return  restApiUtil.updateChatRoom(chatRoom,serviceName);
         } else {
@@ -70,13 +75,28 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
-    public boolean addMember(String roomName, String serviceName, Role roles, String name) throws AlreadyExistException, NotFindRoomException {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean addMember(String roomName, String serviceName, Role roles, String jid) throws AlreadyExistException, NotFindRoomException {
         ChatRoom chatRoom = restApiUtil.getChatRoom(roomName, serviceName);
         if (chatRoom != null) {
-            if (chatRoom.getOwners().contains(name)) {
+            if (chatRoom.getOwners().contains(jid)) {
                 throw new AlreadyExistException();
             } else {
-                return  restApiUtil.addMember(roomName,serviceName,roles,name);
+               if (restApiUtil.addMember(roomName,serviceName,roles,jid)) {
+                   if (roles == Role.members) {
+                       int index = jid.indexOf("@");
+                       String name = index > -1 ? jid.substring(0,index):jid;
+                       UserData user = restApiUtil.getUser(name);
+                       List<Property> url = user.getProperties().stream().filter(u -> u.getKey().equals("url")).collect(Collectors.toList());
+                       if (!url.isEmpty()) {
+                           MucRoomMember member = mucRoomMemberRepository.findMucRoomByNameAndServiceName(roomName, serviceName, jid);
+                           member.setUrl(url.get(0).getValue());
+                       }
+
+                   }
+                   return true;
+               }
+               return false;
             }
         } else {
             throw new NotFindRoomException();
@@ -95,6 +115,11 @@ public class MucRoomServiceImpl implements MucRoomService {
             throw new NotFindRoomException();
         }
         return restApiUtil.deleteChatRoom(roomName,serviceName);
+    }
+
+    @Override
+    public ChatRoom getChatRoom(String roomName, String serviceName) {
+        return restApiUtil.getChatRoom(roomName, serviceName);
     }
 
     @Override
@@ -119,7 +144,6 @@ public class MucRoomServiceImpl implements MucRoomService {
 
     @Override
     public List<MucRoom> findChatRoomsByUserName(String jid,Pagination pagination) {
-        //List<MucRoom> chatRoomsByUserName = mucRoomRepository.findChatRoomsByJid(jid);
         StringBuilder sql = new StringBuilder("SELECT r.* FROM ofmucroom r INNER JOIN (SELECT roomID as roomID from ofmucmember m WHERE m.jid = :jid UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = :jid) t2 on r.roomID = t2.roomID");
         if (pagination != null) {
             sql.append(" limit ");
@@ -132,4 +156,17 @@ public class MucRoomServiceImpl implements MucRoomService {
         entityManager.close();
         return resultList;
     }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public MucRoomMember updateMemberNickname(MucRoomMember member) {
+        MucRoomMember local = entityManager.find(MucRoomMember.class, new MucRoomMemberKey(member.getRoomID(), member.getJid()));
+        if (local != null) {
+            local.setNickname(member.getNickname());
+            return entityManager.merge(local);
+        }
+        return null;
+    }
+
+
 }

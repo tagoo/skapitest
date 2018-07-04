@@ -4,6 +4,7 @@ package com.sunrun.service;
 import com.github.pagehelper.PageInfo;
 import com.sunrun.common.Pagination;
 import com.sunrun.entity.MucRoom;
+import com.sunrun.entity.MucRoomMember;
 import com.sunrun.exception.AlreadyExistException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindRoomException;
@@ -29,4 +30,8 @@ public interface MucRoomService {
     boolean addGroupRoleToChatRoom(String roomName, String serviceName, String name, Role role) throws NotFindRoomException;
 
     List<MucRoom> findChatRoomsByUserName(String userName,Pagination pagination);
+
+    MucRoomMember updateMemberNickname(MucRoomMember member);
+
+    ChatRoom getChatRoom(String roomName, String serviceName);
 }

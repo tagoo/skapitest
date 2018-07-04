@@ -1,5 +1,6 @@
 package com.sunrun.service;
 
+import com.sunrun.entity.MucRoomMember;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
@@ -27,4 +28,5 @@ public interface UserService {
     boolean updateUser(UserData userData) throws NotFindUserException;
 
     boolean delete(String userName)throws NotFindUserException;
+
 }

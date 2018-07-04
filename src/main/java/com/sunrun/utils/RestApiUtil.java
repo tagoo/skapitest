@@ -1,17 +1,7 @@
 package com.sunrun.utils;
 
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationConfig;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.reflect.TypeToken;
 import com.sunrun.common.config.RestApiConfig;
-import com.sunrun.entity.User;
 import com.sunrun.utils.helper.*;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -19,12 +9,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
-import java.io.IOException;
-import java.text.DateFormat;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class RestApiUtil {
@@ -43,15 +30,12 @@ public class RestApiUtil {
         this.restTemplate = restTemplate;
     }
     public ResponseEntity<String> creatChatRoom(ChatRoom chatRoom, String serviceName) {
-        HttpHeaders headers = getHttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
-        HttpEntity<ChatRoom> requestEntity = new HttpEntity<>(chatRoom, headers);
+        HttpEntity<ChatRoom> requestEntity = new HttpEntity<>(chatRoom, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
         return restTemplate.postForEntity(getUrlWithServiceName("room",serviceName), requestEntity, String.class);
     }
 
     public ChatRoom getChatRoom(String roomName,String serviceName) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHttpHeaders());
         try {
             return restTemplate.exchange(getUrlWithParams("room", serviceName, roomName) , HttpMethod.GET, requestEntity, ChatRoom.class).getBody();
         } catch (RestClientException e) {
@@ -64,23 +48,20 @@ public class RestApiUtil {
     }
 
     public boolean updateChatRoom(ChatRoom chatRoom, String serviceName) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        HttpEntity<ChatRoom> requestEntity = new HttpEntity<>(chatRoom, httpHeaders);
+        HttpEntity<ChatRoom> requestEntity = new HttpEntity<>(chatRoom, getHttpHeaders());
         ResponseEntity<String> result = restTemplate.exchange(getUrlWithParams("room", serviceName, chatRoom.getRoomName()), HttpMethod.PUT, requestEntity, String.class);
         return result.getStatusCode() == HttpStatus.OK;
     }
 
 
     public String getRoomOccupants(String roomName,String serviceName) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHttpHeaders());
         ResponseEntity<String> room = restTemplate.exchange(getUrlWithParams("room", serviceName, roomName, OCCUPANTS), HttpMethod.GET, requestEntity, String.class);
         return room.getBody();
     }
 
     public String getRoomParticipants(String roomName,String serviceName){
-        HttpHeaders httpHeaders = getHttpHeaders();
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<String> requestEntity = new HttpEntity<>(null, getHttpHeaders());
         ResponseEntity<String> room = restTemplate.exchange(getUrlWithParams("room", serviceName, roomName, PARTICIPANTS), HttpMethod.GET, requestEntity, String.class);
         return room.getBody();
     }
@@ -88,6 +69,20 @@ public class RestApiUtil {
     public HttpHeaders getHttpHeaders(){
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.set(HttpHeaders.AUTHORIZATION, Base64.getEncoder().encodeToString(restApiConfig.getAuthorizationHeader().getBytes()));
+        return httpHeaders;
+    }
+
+    public HttpHeaders getHttpHeaders(MediaType mediaType,List<MediaType> acceptableMediaTypes){
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.set(HttpHeaders.AUTHORIZATION, Base64.getEncoder().encodeToString(restApiConfig.getAuthorizationHeader().getBytes()));
+        httpHeaders.setContentType(mediaType);
+        httpHeaders.setAccept(acceptableMediaTypes);
+        return httpHeaders;
+    }
+    public HttpHeaders getHttpHeaders(MediaType mediaType){
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.set(HttpHeaders.AUTHORIZATION, Base64.getEncoder().encodeToString(restApiConfig.getAuthorizationHeader().getBytes()));
+        httpHeaders.setContentType(mediaType);
         return httpHeaders;
     }
 
@@ -119,19 +114,13 @@ public class RestApiUtil {
 
 
     public boolean addMember(String roomName, String serviceName, Role roles, String jid) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_XML);
-        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_XML));
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_XML,Arrays.asList(MediaType.APPLICATION_XML)));
         ResponseEntity<String> result = restTemplate.postForEntity(getUrlWithParams("room", serviceName, roomName, roles.name(), jid), requestEntity, String.class);
         return result.getStatusCode() == HttpStatus.CREATED;
     }
 
     public boolean removeMember(String roomName, String serviceName, Role role, String jid) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_XML);
-        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_XML));
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_XML,Arrays.asList(MediaType.APPLICATION_XML)));
         ResponseEntity<String> result = restTemplate.exchange(getUrlWithParams("room", serviceName, roomName, role.name(), jid), HttpMethod.DELETE, requestEntity, String.class);
         return HttpStatus.OK == result.getStatusCode();
     }
@@ -143,10 +132,7 @@ public class RestApiUtil {
     }
 
     public List<ChatRoom> getAllChatRooms(String serviceName, String type, String search) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON_UTF8);
-        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON_UTF8));
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8,Arrays.asList(MediaType.APPLICATION_JSON_UTF8)));
         StringBuilder url = new StringBuilder(getUrlWithServiceName("room", serviceName));
         if (type != null) {
             url.append(url.toString().contains("?")? "&type=" + type: "?type="+type);
@@ -159,17 +145,13 @@ public class RestApiUtil {
     }
 
     public boolean addGroupRoleToChatRoom(String roomName, String serviceName, String groupName, Role role){
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_XML);
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_XML));
         ResponseEntity<String> result = restTemplate.postForEntity(getUrlWithParams("room", serviceName, roomName, role.name(), "group", groupName), requestEntity, String.class);
         return result.getStatusCode() == HttpStatus.CREATED;
     }
 
     public UserData getUser(String userName) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON_UTF8);
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
         try {
             ResponseEntity<UserData> users = restTemplate.exchange(getUserUrlWithParams("users", userName), HttpMethod.GET, requestEntity, UserData.class);
             return users.getBody();
@@ -183,26 +165,55 @@ public class RestApiUtil {
     }
 
     public boolean creatUser(UserData userData) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, httpHeaders);
+        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, getHttpHeaders(MediaType.APPLICATION_JSON,Arrays.asList(MediaType.APPLICATION_JSON)));
         ResponseEntity<String> result = restTemplate.postForEntity(getUrl("users"), requestEntity, String.class);
         return result.getStatusCode() == HttpStatus.CREATED;
     }
 
     public boolean updateUser(UserData userData) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, httpHeaders);
+        HttpEntity<UserData> requestEntity = new HttpEntity<>(userData, getHttpHeaders(MediaType.APPLICATION_JSON));
         ResponseEntity<String> result = restTemplate.exchange(getUserUrlWithParams("users",userData.getUsername()), HttpMethod.PUT, requestEntity, String.class);
         return result.getStatusCode() == HttpStatus.OK;
     }
 
     public boolean deleteUser(String userName) {
-        HttpHeaders httpHeaders = getHttpHeaders();
-        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders());
         ResponseEntity<String> result = restTemplate.exchange(getUserUrlWithParams("users",userName), HttpMethod.DELETE, requestEntity, String.class);
         return  result.getStatusCode() == HttpStatus.OK;
+    }
+
+    public Property getSystemProperty(String propertyName) {
+        HttpEntity<String> requestEntity = new HttpEntity<>(propertyName, getHttpHeaders());
+        try {
+            return restTemplate.exchange(getUrl("properties") + "/{0}", HttpMethod.GET, requestEntity, Property.class, propertyName).getBody();
+        } catch (RestClientException e) {
+            if (e.getMessage().contains("404 Not Found")){
+                return null;
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public List<Property> getAllSystemProperties() {
+        HttpHeaders httpHeaders = getHttpHeaders();
+        httpHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, httpHeaders);
+        return restTemplate.exchange(getUrl("properties"), HttpMethod.GET, requestEntity,PropertyEntity.class).getBody().getProperty();
+    }
+
+    public boolean updateSystemProperty(Property property) {
+        HttpEntity<Property> requestEntity = new HttpEntity<>(property, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        return restTemplate.exchange(getUrl("properties") +"/{0}", HttpMethod.PUT, requestEntity,PropertyEntity.class,property.getKey()).getStatusCode() == HttpStatus.OK;
+    }
+
+    public boolean createSystemProperty(Property property) {
+        HttpEntity<Property> requestEntity = new HttpEntity<>(property, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        return restTemplate.exchange(getUrl("properties"),HttpMethod.POST,requestEntity,String.class).getStatusCode() == HttpStatus.CREATED;
+    }
+
+    public boolean deleteSystemProperty(String propertyName) {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders());
+        return restTemplate.exchange(getUrl("properties")+"/{0}", HttpMethod.DELETE, requestEntity,PropertyEntity.class,propertyName).getStatusCode() == HttpStatus.OK;
     }
 }

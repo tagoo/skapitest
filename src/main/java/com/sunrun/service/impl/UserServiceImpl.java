@@ -1,9 +1,12 @@
 package com.sunrun.service.impl;
 
 import com.sunrun.common.config.IamConfig;
+import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.RosterRepository;
+import com.sunrun.entity.MucRoomMember;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
+import com.sunrun.entity.model.MucRoomMemberKey;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
@@ -22,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 
 
@@ -34,9 +39,13 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private RosterRepository rosterRepository;
     @Autowired
+    private MucRoomMemberRepository mucRoomMemberRepository;
+    @Autowired
     private IamConfig iamConfig;
     @Autowired
     private Operate operate;
+    @PersistenceContext
+    private EntityManager entityManager;
     @Resource
     private RestApiUtil restApiUtil;
     @Override
@@ -117,4 +126,6 @@ public class UserServiceImpl implements UserService {
         }
         return restApiUtil.deleteUser(userName);
     }
+
+
 }

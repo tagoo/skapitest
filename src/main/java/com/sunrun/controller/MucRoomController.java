@@ -6,6 +6,7 @@ import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnData;
 import com.sunrun.entity.MucRoom;
+import com.sunrun.entity.MucRoomMember;
 import com.sunrun.exception.AlreadyExistException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindRoomException;
@@ -80,7 +81,7 @@ public class MucRoomController {
 
     @RequestMapping("member/add")
     public ReturnData addMember(@RequestParam(name = "lang", defaultValue = "zh") String lang,
-                                @RequestParam(value = "serviceName", required = false) String serviceName,
+                                @RequestParam(value = "serviceName", defaultValue = "conference") String serviceName,
                                 @RequestParam(name= "roles", defaultValue = "members") String roles,
                                 @RequestParam(name = "roomName") String roomName,
                                 @RequestParam(name = "name") String name){
@@ -131,18 +132,37 @@ public class MucRoomController {
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
         if (!StringUtils.hasText(roomName)){
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
-        }
-        try {
-            if (mucRoomService.delete(roomName,serviceName)){
-                noticeMessage = NoticeMessage.SUCCESS;
+        } else {
+            try {
+                if (mucRoomService.delete(roomName, serviceName)) {
+                    noticeMessage = NoticeMessage.SUCCESS;
+                }
+            } catch (NotFindRoomException e) {
+                noticeMessage = NoticeMessage.NOT_FIND_ROOM;
             }
-        } catch (NotFindRoomException e) {
-            noticeMessage = NoticeMessage.NOT_FIND_ROOM;
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
+    @GetMapping("{roomName}")
+    public ReturnData getChatRoom(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                  @RequestParam(value = "serviceName", required = false) String serviceName,
+                                  @PathVariable(name = "roomName") String roomName){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        ChatRoom chatRoom = null;
+        if (!StringUtils.hasText(roomName)){
+            noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
+        } else {
+            try {
+                chatRoom = mucRoomService.getChatRoom(roomName, serviceName);
+                noticeMessage = NoticeMessage.SUCCESS;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, chatRoom);
+    }
 
-    @RequestMapping("query")
+    @RequestMapping("query/all")
     public ReturnData getAllChatRooms(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                                       @RequestParam(name = "type", required = false) String type,
                                       @RequestParam(name = "search",required = false) String search,
@@ -215,5 +235,29 @@ public class MucRoomController {
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, chatRoomsByUserName);
+    }
+
+    @RequestMapping("member/update/{jid}")
+    public ReturnData updateNickName(@RequestParam(name = "lang", defaultValue = "zh")String lang,
+                                     @RequestParam(name = "roomID") Long roomID,
+                                     @RequestParam(name = "nickName") String nickName,
+                                     @PathVariable(name = "jid") String jid){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        MucRoomMember update = null;
+        if(!StringUtils.hasText(jid)) {
+            noticeMessage = NoticeMessage.USERNAME_IS_NULL;
+        }else if (roomID == null) {
+            noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
+        } else {
+            MucRoomMember member = new MucRoomMember();
+            member.setRoomID(roomID);
+            member.setNickname(nickName);
+            member.setJid(jid);
+            update = mucRoomService.updateMemberNickname(member);
+            if (update != null) {
+                noticeMessage = NoticeMessage.SUCCESS;
+            }
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, update);
     }
 }

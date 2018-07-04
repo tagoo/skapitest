@@ -62,15 +62,15 @@ public class UserControllerTest {
     @Test
     public void createUser() {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
-        params.add("username","demo");
+        params.add("username","mm11");
         params.add("email","123456@sin.com");
         params.add("name","小新");
         params.add("password","123456");
         ArrayList<Property> properties = new ArrayList<>();
         properties.add(new Property("orgId","1"));
-        properties.add(new Property("domainId","1"));
+        properties.add(new Property("url","https://www.xxxx.com"));
         Gson gson = new Gson();
-        params.add("propertie",gson.toJson(properties));
+        params.add("property",gson.toJson(properties));
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/user/save").params(params))
@@ -126,4 +126,6 @@ public class UserControllerTest {
             e.printStackTrace();
         }
     }
+
+
 }

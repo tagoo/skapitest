@@ -6,6 +6,7 @@ import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnCode;
 import com.sunrun.common.notice.ReturnData;
+import com.sunrun.entity.MucRoomMember;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
@@ -171,4 +172,6 @@ public class UserController {
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
+
+
 }
