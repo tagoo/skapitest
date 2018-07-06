@@ -26,12 +26,13 @@ public class MucRoomControllerTest {
     @Test
     public void save() {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
-        params.add("roomUser","yuanyong@sunrun");
+        params.add("roomUser","admin@sunrun");
         params.add("roomName","test2");
-        params.add("naturalName","dds的");
+        params.add("naturalName","测试");
         params.add("description","hahah");
-        params.add("members","user2@sunrun,zhaoyi@sunrun");
-        params.add("admins","user1@sunrun,user2@sunrun");
+        params.add("members","use2@sunrun");
+        params.add("admins","demo1@sunrun");
+        params.add("serviceName","chat");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/save").params(params))
@@ -72,7 +73,7 @@ public class MucRoomControllerTest {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         params.add("roomName","test");
         params.add("roles","members");
-        params.add("name","mm11@sunrun");
+        params.add("name","demo1");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/member/add").params(params))
@@ -90,9 +91,9 @@ public class MucRoomControllerTest {
     @Test
     public void removeMember() {
         MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
-        params.add("roomName","demo2222");
+        params.add("roomName","test");
         params.add("roles","members");
-        params.add("name","user13@sunrun");
+        params.add("name","demo2@sunrun");
         MvcResult mvcResult = null;
         try {
             mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/room/member/remove").params(params))

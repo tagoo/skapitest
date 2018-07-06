@@ -1,6 +1,5 @@
 package com.sunrun.service.impl;
 
-import com.sunrun.common.OpenfireSystemProperties;
 import com.sunrun.exception.NotFindPropertyException;
 import com.sunrun.exception.PropertyNameEmptyException;
 import com.sunrun.service.SystemPropertyService;

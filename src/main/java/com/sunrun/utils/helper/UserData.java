@@ -5,13 +5,20 @@ import java.util.List;
 
 public class UserData implements Serializable{
 
+    private static final long serialVersionUID = 6270797158737863554L;
     private String username;
     private String password;
     private String email;
     private String name;
     private List<Property> properties;
 
-    public String getUsername() {
+    public String getUsername(){
+        if (username != null) {
+            int index = username.indexOf("_");
+            if (index > -1) {
+                return username.substring(0,index);
+            }
+        }
         return username;
     }
 

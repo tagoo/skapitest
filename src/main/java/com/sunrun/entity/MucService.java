@@ -9,15 +9,15 @@ import javax.persistence.Id;
 
 @Entity(name = "ofmucservice")
 public class MucService {
-    @Id
     @Column(name = "serviceID")
     @GeneratedValue(generator = "snowflakeId")
     @GenericGenerator(name = "snowflakeId",strategy = "com.sunrun.utils.IDGenerator")
     private Long serviceID;
+    @Id
     private String subdomain;
     private String description;
     @Column(name = "isHidden", length = 4)
-    private Short isHidden;
+    private Boolean isHidden;
 
     public MucService() {
     }
@@ -46,11 +46,11 @@ public class MucService {
         this.description = description;
     }
 
-    public Short getIsHidden() {
+    public Boolean getIsHidden() {
         return isHidden;
     }
 
-    public void setIsHidden(Short isHidden) {
+    public void setIsHidden(Boolean isHidden) {
         this.isHidden = isHidden;
     }
 

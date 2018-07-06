@@ -2,9 +2,11 @@ package com.sunrun.security;
 
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.dao.DomainRepository;
+import com.sunrun.dao.MucServiceRepository;
 import com.sunrun.dao.OrgRepository;
 import com.sunrun.dao.UserRepository;
 import com.sunrun.entity.Domain;
+import com.sunrun.entity.MucService;
 import com.sunrun.entity.Org;
 import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
@@ -26,6 +28,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +50,10 @@ public class IamOperate implements Operate,EnvironmentAware{
     private OrgRepository orgRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private MucServiceRepository mucServiceRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
     private final String VALIDATE_URL = "validate";
     @Override
     public boolean accessLogin(User user, String serviceTicket) throws IamConnectionException {
@@ -85,6 +93,7 @@ public class IamOperate implements Operate,EnvironmentAware{
             } else {
                 iamUtil.addDetails(domain);
                 Domain save = domainRepository.save(domain);
+                createMucService(domain);
                 Map<Long,Org> orgDictionary = new HashMap<>();
                 try {
                     List<OrgVo> sources = iamUtil.getOrganizationaList(domain.getDomainId());
@@ -115,6 +124,18 @@ public class IamOperate implements Operate,EnvironmentAware{
             }
         }
         return false;
+    }
+
+    private void createMucService(Domain domain) {
+        try {
+            MucService mucService = new MucService();
+            mucService.setSubdomain(domain.getName());
+            mucService.setIsHidden(false);
+            mucService.setServiceID(IDGenerator.getLongId());
+            mucServiceRepository.save(mucService);
+        } catch (Exception e) {
+            throw new RuntimeException(String.format("Create mucService(%s) exception",domain.getName()));
+        }
     }
 
     private void packUser(List<User> userList, Map<Long, Org> orgDictionary, UserVo u, Domain domain) {

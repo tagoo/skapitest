@@ -47,7 +47,7 @@ public class UserControllerTest {
         params.add("userPassword","123456");*/
         MvcResult mvcResult = null;
         try {
-            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/user/demo").params(params))
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/user/demo_1").params(params))
                     .andExpect(MockMvcResultMatchers.status().isOk())
                     .andReturn();
             Gson gson = new Gson();

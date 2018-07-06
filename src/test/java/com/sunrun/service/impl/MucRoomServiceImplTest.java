@@ -26,13 +26,14 @@ public class MucRoomServiceImplTest {
     public void save() {
         ChatRoom chatRoom = new ChatRoom();
         chatRoom.setDescription("test测试1");
-        chatRoom.setRoomName("testroom2dd2111");
+        chatRoom.setRoomName("test");
         chatRoom.setNaturalName("测试112");
-        chatRoom.setOwners(Arrays.asList("yuanyong@sunrun"));
-        chatRoom.setAdmins(Arrays.asList("user1@sunrun","user2@sunrun"));
-        chatRoom.setOutcasts(Arrays.asList("user19@sunrun","user18@sunrun"));
+        chatRoom.setOwners(Arrays.asList("admin@sunrun"));
+        chatRoom.setMembers(Arrays.asList("demo2@sunrun"));
+        chatRoom.setAdmins(Arrays.asList("demo1@sunrun"));
+        chatRoom.setDefaultProp();
         try {
-            Assert.assertNotNull(mucRoomService.save(chatRoom,"conference"));
+            Assert.assertNotNull(mucRoomService.save(chatRoom,"chat"));
         } catch (NameAlreadyExistException e) {
             e.printStackTrace();
         }
