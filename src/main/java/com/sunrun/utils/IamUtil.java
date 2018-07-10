@@ -38,15 +38,22 @@ public class IamUtil {
     private final String REFRESH_TOKEN ="refresh_token";
     private final String DOMAIN_ID ="domain_id";
 
-    public IamUtil(IamConfig iamConfig,RestTemplate restTemplate) throws IamConnectionException {
+    private static class InstanceFactory{
+        private static IamUtil instance = new IamUtil();
+    }
+    public static IamUtil getInstance(){
+        return InstanceFactory.instance;
+    }
+    private IamUtil(){}
+
+    public void setDefaultProp(IamConfig iamConfig, RestTemplate restTemplate) throws IamConnectionException {
         this.iamConfig = iamConfig;
         this.key = iamConfig.getKey();
-        this.iamServer = iamConfig.getProtocol() + "://" + iamConfig.getServer();
+        this.iamServer = iamConfig.getProtocol() + "://" + iamConfig.getHost()+":"+iamConfig.getPort();
         this.secret = iamConfig.getSecret();
         this.restTemplate = restTemplate;
         this.accessToken = getAccessToken();
     }
-
     public String getKey() {
         return key;
     }
@@ -71,28 +78,27 @@ public class IamUtil {
         this.iamServer = iamServer;
     }
 
-    public String getAccessToken() throws IamConnectionException{
+    public String  getAccessToken() throws IamConnectionException{
         if (accessToken == null) {
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add(GRANT_TYPE, GRANT_TYPE_IS_CC);
-            params.add(ACCESS_KEY, key);
-            params.add(ACCESS_SECRET, secret);
-            params.add(ACCESS_SCOPE, SCOPE_ALL);
-            try {
-                TokenResult result = restTemplate.postForObject(iamServer + iamConfig.getUrls().get("accessToken"), params, TokenResult.class);
-                this.accessToken = result.getAccess_token();
-                this.refreshAccessToken = result.getRefresh_token();
-                return accessToken;
-            } catch (RestClientException e) {
-                throw new IamConnectionException(e);
-            }
-        } else {
-            if (validateAccessToken(accessToken)) {
-                return accessToken;
-            } else {
-                return refreshAccessToken(refreshAccessToken);
+            synchronized (IamUtil.class) {
+                if (accessToken == null) {
+                    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+                    params.add(GRANT_TYPE, GRANT_TYPE_IS_CC);
+                    params.add(ACCESS_KEY, key);
+                    params.add(ACCESS_SECRET, secret);
+                    params.add(ACCESS_SCOPE, SCOPE_ALL);
+                    try {
+                        TokenResult result = restTemplate.postForObject(iamServer + iamConfig.getUrls().get("accessToken"), params, TokenResult.class);
+                        this.accessToken = result.getAccess_token();
+                        this.refreshAccessToken = result.getRefresh_token();
+                        return accessToken;
+                    } catch (RestClientException e) {
+                        throw new IamConnectionException(e);
+                    }
+                }
             }
         }
+        return accessToken;
     }
 
     public boolean validateAccessToken(String accessToken) throws IamConnectionException{

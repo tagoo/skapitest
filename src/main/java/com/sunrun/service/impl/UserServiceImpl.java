@@ -3,19 +3,22 @@ package com.sunrun.service.impl;
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.RosterRepository;
-import com.sunrun.entity.MucRoomMember;
-import com.sunrun.entity.Roster;
-import com.sunrun.entity.User;
+import com.sunrun.entity.*;
 import com.sunrun.entity.model.MucRoomMemberKey;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
 import com.sunrun.dao.UserRepository;
+import com.sunrun.exception.OpenfireLoginFailureException;
 import com.sunrun.security.Operate;
+import com.sunrun.service.MucRoomService;
 import com.sunrun.service.MucServiceService;
 import com.sunrun.service.UserService;
 import com.sunrun.utils.RestApiUtil;
+import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.utils.helper.UserData;
+import org.jxmpp.jid.DomainBareJid;
+import org.jxmpp.jid.impl.JidCreate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private MucRoomMemberRepository mucRoomMemberRepository;
     @Autowired
+    private MucRoomService mucRoomService;
+    @Autowired
     private IamConfig iamConfig;
     @Autowired
     private Operate operate;
@@ -52,7 +57,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Cacheable(value ="user",key = "#user.userName")
     @Transactional
-    public User loginByUser(User user, String serviceTicket) throws NotFindUserException {
+    public User loginByUser(User user, String serviceTicket) throws NotFindUserException, OpenfireLoginFailureException {
         User u = userRepository.findUserByUserNameAndUserPassword(user.getUserName(), user.getUserPassword());
         if (null == u) {
             throw new NotFindUserException();
@@ -62,6 +67,22 @@ public class UserServiceImpl implements UserService {
                 logger.info("Login authentication successful from Iam,username:" + user.getUserName());
                 return u;
             }
+            //openfire 登录
+            XmppConnectionUtil instance = XmppConnectionUtil.getInstance();
+            if (instance.login(user.getUserName(),user.getUserPassword())) {
+                List<MucRoom> chatRooms = mucRoomService.findChatRoomsByUserName(user.getUserName() + "@" + instance.getConnection().getServiceName().toString(), null);
+                boolean flag = false;
+                for (MucRoom room: chatRooms) {
+                    flag = instance.joinChatRoom(user.getUserName(), room.getName(), null);
+                    if (!flag) {
+                        instance.disconnectAccout();
+                        break;
+                    }
+                }
+            } else {
+                throw new OpenfireLoginFailureException();
+            }
+
             return null;
         } catch (IamConnectionException e) {
            throw new RuntimeException(e);

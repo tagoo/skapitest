@@ -12,6 +12,7 @@ import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
+import com.sunrun.exception.OpenfireLoginFailureException;
 import com.sunrun.service.RosterService;
 import com.sunrun.service.UserService;
 import com.sunrun.utils.IpUtil;
@@ -56,6 +57,9 @@ public class UserController {
             } catch (NotFindUserException e) {
                 e.printStackTrace();
                 noticeMessage = NoticeMessage.USERNAME_OR_PASSWORD_ERROR;
+            } catch (OpenfireLoginFailureException e) {
+                e.printStackTrace();
+                noticeMessage = NoticeMessage.OPENFIRE_LOGIN_FAILURE;
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
@@ -173,5 +177,4 @@ public class UserController {
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
-
 }

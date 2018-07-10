@@ -82,7 +82,9 @@ public enum NoticeMessage {
 
         GROUP_NAME_IS_EMPTY(1037,"组名不可为空" , "The group name is empty."),
 
-        USERNAME_ALREADY_EXIST(1038, "该用户名已经存在", "The username already exists.");
+        USERNAME_ALREADY_EXIST(1038, "该用户名已经存在", "The username already exists."),
+
+        OPENFIRE_LOGIN_FAILURE(1030,"无法登录openfire服务器" , "Failed to login the server of openfire");
         private int code;
         private String cnMessage;
         private String enMessage;

@@ -6,12 +6,13 @@ import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
+import com.sunrun.exception.OpenfireLoginFailureException;
 import com.sunrun.utils.helper.UserData;
 
 import java.util.List;
 
 public interface UserService {
-    User loginByUser(User user, String serviceTicket) throws NotFindUserException;
+    User loginByUser(User user, String serviceTicket) throws NotFindUserException, OpenfireLoginFailureException;
 
     User save(User user);
 

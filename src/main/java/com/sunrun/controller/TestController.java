@@ -1,5 +1,6 @@
 package com.sunrun.controller;
 
+import com.sunrun.utils.XmppConnectionUtil;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.SmackException;
@@ -13,6 +14,7 @@ import org.jivesoftware.smack.roster.Roster;
 import org.jivesoftware.smack.roster.RosterEntry;
 import org.jivesoftware.smack.tcp.XMPPTCPConnection;
 import org.jivesoftware.smack.tcp.XMPPTCPConnectionConfiguration;
+import org.jivesoftware.smackx.muc.HostedRoom;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 import org.jivesoftware.smackx.muc.RoomInfo;
 import org.jxmpp.jid.EntityBareJid;
@@ -23,13 +25,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 
 @RequestMapping("test")
 @RestController
 public class TestController {
     @RequestMapping()
     public void testDemo(){
-        try {
+        /*try {
             XMPPTCPConnectionConfiguration configuration = XMPPTCPConnectionConfiguration.builder()
                     .setUsernameAndPassword("demo1", "123456")
                     .setXmppDomain("sunrun")
@@ -61,9 +64,15 @@ public class TestController {
                 System.out.println(entry);
             }
             Thread.sleep(60000);
-            /*connection.disconnect();*/
+            *//*connection.disconnect();*//*
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
+        XmppConnectionUtil instance = XmppConnectionUtil.getInstance();
+        instance.login("demo1","123456");
+        List<RosterEntry> allFriends = instance.getAllFriends();
+        List<HostedRoom> allHostedRooms = instance.getAllHostedRooms();
+        System.out.println(allHostedRooms);
+        instance.closeConnection();
     }
 }

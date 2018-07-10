@@ -59,12 +59,12 @@ public class IamOperate implements Operate,EnvironmentAware{
     public boolean accessLogin(User user, String serviceTicket) throws IamConnectionException {
         IamValidateRespData body = null;
         try {
-            StringBuffer url = new StringBuffer(iamConfig.getProtocol()+"://");
-            url.append(iamConfig.getServer()).append(iamConfig.getUrls().get(VALIDATE_URL));
+            StringBuffer url = new StringBuffer(IamUtil.getInstance().getIamServer());
+            url.append(iamConfig.getUrls().get(VALIDATE_URL));
             body = restTemplate.getForEntity(url.toString() + "?st={0}&service={1}", IamValidateRespData.class, serviceTicket, iamConfig.getService()).getBody();
 
         } catch (RestClientException e) {
-            logger.error("Failed to connect to the Iam,server: " + iamConfig.getServer());
+            logger.error("Failed to connect to the Iam,server: " + iamConfig.getHost());
             throw new IamConnectionException(e);
         }
         return body.getUser_id() != null;
@@ -77,26 +77,26 @@ public class IamOperate implements Operate,EnvironmentAware{
 
     @Override
     public boolean synchronizeData() throws IamConnectionException {
-        IamUtil iamUtil = new IamUtil(iamConfig, restTemplate);
+
         List<Domain> domainList = domainRepository.findAll();
         Map<Integer, Domain> localDomains = null;
         if (!domainList.isEmpty()) {
             localDomains = domainList.stream().collect(Collectors.toMap(u -> u.getDomainId(), u -> u));
         }
-        for (Domain domain : iamUtil.getDomainList()) {
+        for (Domain domain : IamUtil.getInstance().getDomainList()) {
             if(null != localDomains && localDomains.containsKey(domain.getDomainId())) {
                 if (domain.isNeedUpdate(localDomains.get(domain.getDomainId()).getUpdateTime())) {
                     logger.info(String.format("Starting update the domain that ID is %d,its name is %s",domain.getDomainId(),domain.getName()));
-                    iamUtil.addDetails(localDomains.get(domain.getDomainId()));
+                    IamUtil.getInstance().addDetails(localDomains.get(domain.getDomainId()));
                     domainRepository.saveAndFlush(domain);
                 }
             } else {
-                iamUtil.addDetails(domain);
+                IamUtil.getInstance().addDetails(domain);
                 Domain save = domainRepository.save(domain);
                 createMucService(domain);
                 Map<Long,Org> orgDictionary = new HashMap<>();
                 try {
-                    List<OrgVo> sources = iamUtil.getOrganizationaList(domain.getDomainId());
+                    List<OrgVo> sources = IamUtil.getInstance().getOrganizationaList(domain.getDomainId());
                     if (sources!= null && !sources.isEmpty()) {
                         List<Org> orgList = new ArrayList<>();
                         sources.forEach(u -> packOrg(orgList, orgDictionary, u, save.getId()));
@@ -108,7 +108,7 @@ public class IamOperate implements Operate,EnvironmentAware{
                     throw new SycnOrgException(message,e);
                 }
                 try {
-                    List<UserVo> userSources = iamUtil.getUserList(save.getDomainId());
+                    List<UserVo> userSources = IamUtil.getInstance().getUserList(save.getDomainId());
                     if (userSources != null && !userSources.isEmpty()) {
                         List<User> userList = new ArrayList<>();
                         userSources.forEach(u -> {

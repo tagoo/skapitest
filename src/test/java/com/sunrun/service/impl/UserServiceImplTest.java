@@ -47,7 +47,7 @@ public class UserServiceImplTest {
         try {
             User u = userService.loginByUser(user,hashMap.get("st"));
             Assert.assertEquals(16390L,u.getId().longValue());
-        } catch (NotFindUserException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

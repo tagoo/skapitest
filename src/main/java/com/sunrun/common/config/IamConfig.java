@@ -10,7 +10,8 @@ import java.util.Map;
 public class IamConfig {
     private String key;
     private String secret;
-    private String server;
+    private String host;
+    private int port;
     private String service;
     private String protocol;
     private Map<String,String> urls;
@@ -31,12 +32,20 @@ public class IamConfig {
         this.secret = secret;
     }
 
-    public String getServer() {
-        return server;
+    public String getHost() {
+        return host;
     }
 
-    public void setServer(String server) {
-        this.server = server;
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 
     public Map<String, String> getUrls() {
