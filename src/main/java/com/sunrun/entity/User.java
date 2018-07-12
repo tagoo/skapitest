@@ -19,6 +19,7 @@ public class User implements Serializable{
     @GenericGenerator(name = "snowflakeId",strategy = "com.sunrun.utils.IDGenerator")
     private Long id;
     private Long sourceId;
+    @Column(name = "orgId")
     private Long orgId;
     private Long domainId;
     private Integer sortNumber;

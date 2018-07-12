@@ -27,7 +27,9 @@ public class SkapiApplicationRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         logger.info(String.format("Start connecting to the IAM server,host:%s,port:%d",iamConfig.getHost(),iamConfig.getPort()));
         IamUtil.getInstance().setDefaultProp(iamConfig,restTemplate);
-        logger.info("Successfully connect to the IAM server");
-        System.out.println(IamUtil.getInstance().getAccessToken());
+        logger.info("Successfully connect to the IAM server," + IamUtil.getInstance().getIamServer());
+        logger.info("Start synchronizing user data of the IAM server");
+        /*operate.synchronizeData();*/
+        logger.info("Successfully complete synchronizing");
     }
 }

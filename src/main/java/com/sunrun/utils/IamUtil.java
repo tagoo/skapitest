@@ -6,6 +6,7 @@ import com.sunrun.entity.Domain;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.vo.*;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
@@ -37,6 +38,9 @@ public class IamUtil {
     private final String ACCESS_TOKEN ="access_token";
     private final String REFRESH_TOKEN ="refresh_token";
     private final String DOMAIN_ID ="domain_id";
+    private final String ORG_ID ="org_id";
+
+
 
     private static class InstanceFactory{
         private static IamUtil instance = new IamUtil();
@@ -144,7 +148,6 @@ public class IamUtil {
     public DomainVo getDomainDetails(int domainId) throws IamConnectionException{
        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domain") + "?access_token={0}&domain_id={1}", DomainVo.class, getAccessToken(), domainId);
     }
-
     public void addDetails(Domain domain) throws IamConnectionException {
         DomainVo vo = getDomainDetails(domain.getDomainId());
         domain.setUpdateTime(Date.from(LocalDateTime.parse(vo.getUpdate_time(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant()));
@@ -153,22 +156,26 @@ public class IamUtil {
         domain.setSource(ImDictionary.DOMAIN_SOURCE_IAM);
     }
 
-    public List<UserVo> getUserList(Integer domainId) throws IamConnectionException {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add(ACCESS_TOKEN, accessToken);
-        params.add(DOMAIN_ID, domainId.toString());
-        params.add("type", "2");
-        params.add("user_infos", "*");
-        System.out.println( "domainId =" + domainId  +",data:" + restTemplate.postForObject(iamServer + iamConfig.getUrls().get("orgList"), params, String.class));
-        return restTemplate.postForObject(iamServer + iamConfig.getUrls().get("orgList"), params, UserResultVo.class).getOrgs();
+
+    public UserVo getUserDetails(Long userId) throws IamConnectionException{
+        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("user")+"?access_token={0}&user_id={1}",UserVo.class, getAccessToken(),userId);
     }
+
+    public List<UserVo> getUserList(Integer domainId) throws IamConnectionException {
+        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&domain_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),domainId).getOrgs();
+    }
+
+    public List<UserVo> getUserList(Long orgId) throws IamConnectionException {
+        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&org_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),orgId ).getOrgs();
+    }
+
     public static Date dateFormat(String dateStr) {
         return Date.from(LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant());
     }
 
     public List<OrgVo> getOrganizationaList(Integer domainId) throws IamConnectionException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add(ACCESS_TOKEN, accessToken);
+        params.add(ACCESS_TOKEN, getAccessToken());
         params.add(DOMAIN_ID, domainId.toString());
         params.add("type", "1");
         params.add("org_infos", "*");
