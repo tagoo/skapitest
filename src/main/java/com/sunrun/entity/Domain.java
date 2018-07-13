@@ -14,11 +14,8 @@ import java.util.Date;
 public class Domain implements Serializable{
     private static final long serialVersionUID = -4597698791566931790L;
     @Id
-    @GeneratedValue(generator = "snowflakeId")
-    @GenericGenerator(name = "snowflakeId",strategy = "com.sunrun.utils.IDGenerator")
     private Long id;
     private String name;
-    private Integer domainId;
     private Integer source;
     private Integer sortNumber;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone="GMT+8")
@@ -66,14 +63,6 @@ public class Domain implements Serializable{
         this.createTime = createTime;
     }
 
-    public Integer getDomainId() {
-        return domainId;
-    }
-
-    public void setDomainId(Integer domainId) {
-        this.domainId = domainId;
-    }
-
     public Integer getSource() {
         return source;
     }
@@ -84,5 +73,17 @@ public class Domain implements Serializable{
 
     public boolean isNeedUpdate(Date newDate){
         return newDate.equals(getUpdateTime());
+    }
+
+    @Override
+    public String toString() {
+        return "Domain{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", source=" + source +
+                ", sortNumber=" + sortNumber +
+                ", updateTime=" + updateTime +
+                ", createTime=" + createTime +
+                '}';
     }
 }

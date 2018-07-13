@@ -1,6 +1,7 @@
 package com.sunrun.security;
 
 import com.sunrun.common.config.IamConfig;
+import com.sunrun.common.notice.ReturnData;
 import com.sunrun.dao.DomainRepository;
 import com.sunrun.dao.MucServiceRepository;
 import com.sunrun.dao.OrgRepository;
@@ -9,31 +10,31 @@ import com.sunrun.entity.Domain;
 import com.sunrun.entity.MucService;
 import com.sunrun.entity.Org;
 import com.sunrun.entity.User;
+import com.sunrun.exception.CannotFindDomain;
+import com.sunrun.exception.GetUserException;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.SycnOrgException;
-import com.sunrun.exception.SyncUserException;
 import com.sunrun.utils.IDGenerator;
 import com.sunrun.utils.IamUtil;
-import com.sunrun.utils.JidGenerator;
 import com.sunrun.vo.IamValidateRespData;
 import com.sunrun.vo.OrgVo;
 import com.sunrun.vo.UserVo;
 import org.apache.commons.codec.digest.DigestUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
 import javax.annotation.Resource;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import javax.persistence.*;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 @Configuration
 public class IamOperate implements Operate,EnvironmentAware{
@@ -75,111 +76,139 @@ public class IamOperate implements Operate,EnvironmentAware{
     }
 
     @Override
-    public boolean synchronizeData() throws IamConnectionException {
+    public ReturnData synchronizeData() throws IamConnectionException {
+        ReturnData returnData = new ReturnData();
+        Map<String,List<Domain>> map = Collections.synchronizedMap(new HashMap<String,List<Domain>>());
         List<Domain> domainList = domainRepository.findAll();
-        Map<Integer, Domain> localDomains = null;
+        final Map<Long, Domain> localDomains = Collections.synchronizedMap(new HashMap<>());
         if (!domainList.isEmpty()) {
-            localDomains = domainList.stream().collect(Collectors.toMap(u -> u.getDomainId(), u -> u));
+            domainList.forEach(u -> localDomains.put(u.getId(), u));
+            /*localDomains = domainList.stream().collect(Collectors.toMap(u -> u.getDomainId(), u -> u));*/
         }
         List<Domain> remoteDomains = IamUtil.getInstance().getDomainList();
-        for (Domain domain : remoteDomains) {
-            if (null != localDomains && localDomains.containsKey(domain.getDomainId())) {
-                if (domain.isNeedUpdate(localDomains.get(domain.getDomainId()).getUpdateTime())) {
-                    logger.info(String.format("Starting update the domain that ID is %d,its name is %s", domain.getDomainId(), domain.getName()));
-                    IamUtil.getInstance().addDetails(localDomains.get(domain.getDomainId()));
-                    domainRepository.saveAndFlush(domain);
-                }
-            } else {
-                IamUtil.getInstance().addDetails(domain);
-                Domain save = domainRepository.save(domain);
-                createMucService(domain);
-                Map<Long, Org> orgDictionary = new HashMap<>();
-                try {
-                    List<OrgVo> sources = IamUtil.getInstance().getOrganizationaList(domain.getDomainId());
-                    if (sources != null && !sources.isEmpty()) {
-                        List<Org> orgList = Collections.synchronizedList(new ArrayList<Org>());
-                        sources.forEach(u -> {
-                            packOrg(orgList, orgDictionary, u, save.getId());
-                            if (!orgList.isEmpty()) {
-                                orgRepository.saveAll(orgList);
-                                orgList.forEach(r -> {
-                                    saveUserInSingleOrg(r, orgDictionary, domain);
-                                });
+        ExecutorService executorService = Executors.newFixedThreadPool(remoteDomains.size());
+        Map<Domain,Future<Boolean>> futureList = new HashMap<>(remoteDomains.size());
+        boolean flag = true;
+        try {
+            for (Domain domain : remoteDomains) {
+                Future<Boolean> submit = executorService.submit(() -> {
+                    if (localDomains.containsKey(domain.getId())) {
+                        if (domain.isNeedUpdate(localDomains.get(domain.getId()).getUpdateTime())) {
+                            logger.info(String.format("Starting update the domain that ID is %d,its name is %s", domain.getId(), domain.getName()));
+                            IamUtil.getInstance().addDetails(localDomains.get(domain.getId()));
+                            domainRepository.saveAndFlush(domain);
+                        }
+                        return false;
+                    } else {
+                        try {
+                            IamUtil.getInstance().addDetails(domain);
+                            domainRepository.saveAndFlush(domain);
+                            Map<Long, Org> orgDictionary = new HashMap<>();
+                            List<OrgVo> sources = IamUtil.getInstance().getOrganizationaList(domain.getId());
+                            if (sources != null && !sources.isEmpty()) {
+                                List<Org> orgList = new ArrayList<>();
+                                for (OrgVo u : sources) {
+                                    try {
+                                        packOrg(orgList, orgDictionary, u, domain.getId());
+                                        if (!orgList.isEmpty()) {
+                                            orgRepository.saveAll(orgList);
+                                            for (Org r : orgList) {
+                                                saveUserInSingleOrg(r, orgDictionary, domain);
+                                            }
+                                            orgList.clear();
+                                        }
+                                        logger.info(String.format("Complete the users data of the org(name:%s,id:%d) insertion", u.getName(), u.getId()));
+                                    } catch (Exception e) {
+                                        logger.warn(String.format("Failed to Sync org(name:%s,id:%d) data of the domain(name:%s,id:%d).", u.getName(), u.getId(), domain.getName(), domain.getName()));
+                                        String message = String.format("同步域(%s)中的部门出现异常", domain.getName());
+                                        throw new SycnOrgException(message, e);
+                                    }
+                                }
                             }
-                            logger.info(String.format("Complete the users data of the org(name:%s,id:%d) insertion", u.getName(), u.getId()));
-                        });
+                            createMucService(domain);
+                            return true;
+                        } catch (Exception e) {
+                            return false;
+                        }
                     }
-                } catch (IamConnectionException e) {
-                    String message = String.format("同步域(%s)中的部门出现异常", save.getName());
-                    logger.error(message);
-                    throw new SycnOrgException(message, e);
-                }
-                /*try {
-                    List<UserVo> userSources = IamUtil.getInstance().getUserList(save.getDomainId());
-                    if (userSources != null && !userSources.isEmpty()) {
-                        List<User> userList = new ArrayList<>();
-                        userSources.forEach(u -> {
-                            packUser(userList,orgDictionary,u,save);
-                        });
-                        if (!userList.isEmpty()) userRepository.saveAll(userList);
-                    }
-                } catch (IamConnectionException e) {
-                    String message = String.format("同步域(%s)中的用户出现异常",save.getName());
-                    logger.error(message);
-                    throw new SyncUserException(message,e);
-                }*/
+                });
+                futureList.put(domain,submit);
             }
-        };
-        return false;
-           /* if(null != localDomains && localDomains.containsKey(domain.getDomainId())) {
-                if (domain.isNeedUpdate(localDomains.get(domain.getDomainId()).getUpdateTime())) {
-                    logger.info(String.format("Starting update the domain that ID is %d,its name is %s",domain.getDomainId(),domain.getName()));
-                    IamUtil.getInstance().addDetails(localDomains.get(domain.getDomainId()));
-                    domainRepository.saveAndFlush(domain);
-                }
-            } else {
-                IamUtil.getInstance().addDetails(domain);
-                Domain save = domainRepository.save(domain);
-                createMucService(domain);
-                Map<Long,Org> orgDictionary = new HashMap<>();
+            List<Domain> failedDomains = Collections.synchronizedList(new ArrayList<Domain>());
+            List<Domain> successDomains = Collections.synchronizedList(new ArrayList<Domain>());
+            for (Map.Entry<Domain, Future<Boolean>> entry :futureList.entrySet()) {
+                Domain domainKey = entry.getKey();
                 try {
-                    List<OrgVo> sources = IamUtil.getInstance().getOrganizationaList(domain.getDomainId());
-                    if (sources!= null && !sources.isEmpty()) {
-                        List<Org> orgList = new ArrayList<>();
-                        sources.forEach(u -> packOrg(orgList, orgDictionary, u, save.getId()));
-                        if (!orgList.isEmpty()) orgRepository.saveAll(orgList);
+                    if (entry.getValue().get()) {
+                        successDomains.add(domainKey);
+                        logger.info("Complete synchronization the domain(name:%s,id:%d)", domainKey.getName(), domainKey.getId());
+                    } else {
+                        failedDomains.add(domainKey);
+                        flag = false;
                     }
-                } catch (IamConnectionException e) {
-                    String message = String.format("同步域(%s)中的部门出现异常",save.getName());
-                    logger.error(message);
-                    throw new SycnOrgException(message,e);
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                    failedDomains.add(domainKey);
+                    flag = false;
                 }
-                try {
-                    List<UserVo> userSources = IamUtil.getInstance().getUserList(save.getDomainId());
-                    if (userSources != null && !userSources.isEmpty()) {
-                        List<User> userList = new ArrayList<>();
-                        userSources.forEach(u -> {
-                            packUser(userList,orgDictionary,u,save);
-                        });
-                        if (!userList.isEmpty()) userRepository.saveAll(userList);
-                    }
-                } catch (IamConnectionException e) {
-                    String message = String.format("同步域(%s)中的用户出现异常",save.getName());
-                    logger.error(message);
-                   throw new SyncUserException(message,e);
-                }
-            }*/
+            }
+            map.put("successDomains",successDomains);
+            map.put("failedDomains",failedDomains);
+            returnData.setData(map);
+        }catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            executorService.shutdown();
         }
+        returnData.setSuccess(flag);
+        return returnData;
+    }
 
-    private void saveUserInSingleOrg(Org org, Map<Long, Org> orgDictionary, Domain domain)  {
+
+    private boolean checkDomainResourceExist(Domain save) {
+        boolean flag = false;
+        flag = userRepository.selectCountByDomainId(save.getId()) > 0;
+        if (!flag) {
+            flag = orgRepository.selectCountByDomainId(save.getId()) > 0;
+        }
+        if (!flag) {
+            flag = domainRepository.existsById(save.getId());
+        }
+        return flag;
+    }
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean deleteDomainResource(List<Domain> domains) throws CannotFindDomain {
+        if (domains == null || domains.isEmpty()) {
+            throw new CannotFindDomain();
+        }
+        for (Domain save: domains) {
+            if (checkDomainResourceExist(save)) {
+                Domain domain = entityManager.find(Domain.class, save.getId());
+                if (domain != null) {
+                    entityManager.remove(domain);
+                }
+                userRepository.deleteByDomainId(save.getId());
+                orgRepository.deleteByDomainId(save.getId());
+            }
+            if (checkDomainResourceExist(save)){
+                logger.error(String.format("Failed to delete the domain(name:%s,id:%d)",save.getName(),save.getId()));
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void saveUserInSingleOrg(Org org, Map<Long, Org> orgDictionary, Domain domain) throws GetUserException  {
         /*userRepository.findByOrgId(org.getOrgId());*/
-        orgRepository.findById(org.getOrgId()).ifPresent(o ->{
+        Optional<Org> local = orgRepository.findById(org.getOrgId());
+        if (local.isPresent()) {
             List<UserVo> userSources = null;
             try {
-                userSources = IamUtil.getInstance().getUserList(o.getSourceId());
+                userSources = IamUtil.getInstance().getUserList(local.get().getSourceId());
             } catch (Exception e) {
                 logger.error(String.format("Failed to Get user data of the org(name:%s,id:%d) from IAM server",org.getName(),org.getSourceId()));
-                throw new RuntimeException(e);
+                throw new GetUserException(e);
             }
             if (userSources != null && !userSources.isEmpty()) {
                 List<User> userList = new ArrayList<>();
@@ -188,8 +217,7 @@ public class IamOperate implements Operate,EnvironmentAware{
                 });
                 if (!userList.isEmpty()) userRepository.saveAll(userList);
             }
-        });
-
+        }
     }
 
     private void createMucService(Domain domain) {

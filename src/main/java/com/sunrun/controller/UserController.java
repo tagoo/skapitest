@@ -6,13 +6,12 @@ import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnCode;
 import com.sunrun.common.notice.ReturnData;
+import com.sunrun.entity.Domain;
 import com.sunrun.entity.MucRoomMember;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
-import com.sunrun.exception.IamConnectionException;
-import com.sunrun.exception.NameAlreadyExistException;
-import com.sunrun.exception.NotFindUserException;
-import com.sunrun.exception.OpenfireLoginFailureException;
+import com.sunrun.exception.*;
+import com.sunrun.security.Operate;
 import com.sunrun.service.RosterService;
 import com.sunrun.service.UserService;
 import com.sunrun.utils.IpUtil;
@@ -26,7 +25,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/user")
@@ -35,6 +38,8 @@ public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     @Autowired
     private UserService userService;
+    @Autowired
+    private Operate operate;
     @Autowired
     private RosterService rosterService;
 
@@ -85,12 +90,33 @@ public class UserController {
 
     @RequestMapping("synchronization")
     public ReturnCode updateUser(@RequestParam(name = "lang", defaultValue = "zh")String lang) {
+        NoticeMessage noticeMessage = NoticeMessage.SYNCHRONIZATION_FAILURE;
         try {
-            userService.updateUserList();
+            ReturnData returnData = operate.synchronizeData();
+            if (!returnData.isSuccess()) {
+                Object data = returnData.getData();
+                if (data != null) {
+                    HashMap<String,List<Domain>> domainMap = (HashMap<String,List<Domain>>) data;
+                    List<Domain> failedDomains = domainMap.get("failedDomains");
+                    try {
+                        if (operate.deleteDomainResource(failedDomains)){
+                            logger.info("Deleted successfully the failed synchronization domain.");
+                        } else {
+                            List<Domain> successDomains = domainMap.get("successDomains");
+                            successDomains.addAll(failedDomains);
+                            operate.deleteDomainResource(successDomains);
+                        }
+                    } catch (CannotFindDomain e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else {
+                noticeMessage = NoticeMessage.SUCCESS;
+            }
         } catch (IamConnectionException e) {
             e.printStackTrace();
         }
-        return NoticeFactory.createNotice(NoticeMessage.SUCCESS, lang);
+        return NoticeFactory.createNotice(noticeMessage, lang);
     }
 
     @RequestMapping("{userName}")

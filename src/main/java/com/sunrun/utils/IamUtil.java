@@ -138,18 +138,18 @@ public class IamUtil {
         return domains.stream()
                 .map((u) -> {
                     Domain domain = new Domain();
-                    domain.setDomainId(u.getId());
+                    domain.setId(u.getId());
                     domain.setName(u.getName());
                     domain.setUpdateTime(Date.from(LocalDateTime.parse(u.getUpdate_time(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant()));
                     return domain; })
                 .collect(Collectors.toList());
     }
 
-    public DomainVo getDomainDetails(int domainId) throws IamConnectionException{
+    public DomainVo getDomainDetails(Long domainId) throws IamConnectionException{
        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domain") + "?access_token={0}&domain_id={1}", DomainVo.class, getAccessToken(), domainId);
     }
     public void addDetails(Domain domain) throws IamConnectionException {
-        DomainVo vo = getDomainDetails(domain.getDomainId());
+        DomainVo vo = getDomainDetails(domain.getId());
         domain.setUpdateTime(Date.from(LocalDateTime.parse(vo.getUpdate_time(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant()));
         domain.setSortNumber(vo.getSort_number());
         domain.setName(vo.getName());
@@ -173,7 +173,7 @@ public class IamUtil {
         return Date.from(LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant());
     }
 
-    public List<OrgVo> getOrganizationaList(Integer domainId) throws IamConnectionException {
+    public List<OrgVo> getOrganizationaList(Long domainId) throws IamConnectionException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(ACCESS_TOKEN, getAccessToken());
         params.add(DOMAIN_ID, domainId.toString());

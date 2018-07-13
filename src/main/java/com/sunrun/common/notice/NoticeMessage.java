@@ -84,7 +84,9 @@ public enum NoticeMessage {
 
         USERNAME_ALREADY_EXIST(1038, "该用户名已经存在", "The username already exists."),
 
-        OPENFIRE_LOGIN_FAILURE(1030,"无法登录openfire服务器" , "Failed to login the server of openfire");
+        OPENFIRE_LOGIN_FAILURE(1030,"无法登录openfire服务器" , "Failed to login the server of openfire"),
+
+        SYNCHRONIZATION_FAILURE(1031,"同步失败" ,"Failed to synchronize the data of IAM" );
         private int code;
         private String cnMessage;
         private String enMessage;

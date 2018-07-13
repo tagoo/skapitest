@@ -1,10 +1,10 @@
 package com.sunrun.service.impl;
 
 import com.sunrun.common.config.IamConfig;
+import com.sunrun.common.notice.ReturnData;
 import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.RosterRepository;
 import com.sunrun.entity.*;
-import com.sunrun.entity.model.MucRoomMemberKey;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.exception.NameAlreadyExistException;
 import com.sunrun.exception.NotFindUserException;
@@ -12,13 +12,10 @@ import com.sunrun.dao.UserRepository;
 import com.sunrun.exception.OpenfireLoginFailureException;
 import com.sunrun.security.Operate;
 import com.sunrun.service.MucRoomService;
-import com.sunrun.service.MucServiceService;
 import com.sunrun.service.UserService;
 import com.sunrun.utils.RestApiUtil;
 import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.utils.helper.UserData;
-import org.jxmpp.jid.DomainBareJid;
-import org.jxmpp.jid.impl.JidCreate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,7 +107,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public boolean updateUserList() throws IamConnectionException{
+    public ReturnData updateUserList() throws IamConnectionException{
         return  operate.synchronizeData();
     }
 

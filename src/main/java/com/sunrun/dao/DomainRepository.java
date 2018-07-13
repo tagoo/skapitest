@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 @CacheConfig(cacheNames = "user")
-public interface DomainRepository extends JpaRepository<Domain,Integer> {
+public interface DomainRepository extends JpaRepository<Domain,Long> {
     @Cacheable
     List<Domain> findAll();
 }
