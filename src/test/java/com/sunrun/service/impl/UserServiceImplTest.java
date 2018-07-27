@@ -2,8 +2,7 @@ package com.sunrun.service.impl;
 
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.entity.User;
-import com.sunrun.exception.IamConnectionException;
-import com.sunrun.exception.NotFindUserException;
+import com.sunrun.exception.*;
 import com.sunrun.service.UserService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -54,7 +53,19 @@ public class UserServiceImplTest {
     @Test
     public void updateUserList() {
         try {
-            Assert.assertEquals(true,userService.updateUserList());
+            try {
+                try {
+                    Assert.assertEquals(true,userService.updateUserList());
+                } catch (CannotFindDomain e) {
+                    e.printStackTrace();
+                } catch (GetUserException e) {
+                    e.printStackTrace();
+                }
+            } catch (NotFindMucServiceException e) {
+                e.printStackTrace();
+            } catch (SyncOrgException e) {
+                e.printStackTrace();
+            }
         } catch (IamConnectionException e) {
             e.printStackTrace();
         }

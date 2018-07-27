@@ -2,6 +2,7 @@ package com.sunrun.utils;
 
 
 import com.sunrun.common.config.RestApiConfig;
+import com.sunrun.entity.Property;
 import com.sunrun.utils.helper.*;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -15,13 +16,13 @@ import java.util.List;
 
 @Component
 public class RestApiUtil {
+
     @Resource
     private RestApiConfig restApiConfig;
     @Resource
     private RestTemplate restTemplate;
     private static final String OCCUPANTS ="occupants";
     private static final String PARTICIPANTS ="participants";
-
     public void setRestApiConfig(RestApiConfig restApiConfig) {
         this.restApiConfig = restApiConfig;
     }

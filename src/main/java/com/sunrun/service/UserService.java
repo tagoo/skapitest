@@ -1,12 +1,8 @@
 package com.sunrun.service;
 
-import com.sunrun.common.notice.ReturnData;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
-import com.sunrun.exception.IamConnectionException;
-import com.sunrun.exception.NameAlreadyExistException;
-import com.sunrun.exception.NotFindUserException;
-import com.sunrun.exception.OpenfireLoginFailureException;
+import com.sunrun.exception.*;
 import com.sunrun.utils.helper.UserData;
 
 import java.util.List;
@@ -20,7 +16,7 @@ public interface UserService {
 
     List<Roster> getFriendList(String userName);
 
-    ReturnData updateUserList() throws IamConnectionException;
+    boolean updateUserList() throws IamConnectionException, NotFindMucServiceException, SyncOrgException, CannotFindDomain, GetUserException;
 
     UserData getUser(String userName);
 

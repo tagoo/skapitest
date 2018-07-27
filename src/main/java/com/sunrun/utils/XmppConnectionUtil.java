@@ -1,6 +1,6 @@
 package com.sunrun.utils;
 
-import com.sunrun.openfire.MyConnectionListener;
+import com.sunrun.listener.openfire.MyConnectionListener;
 import org.jivesoftware.smack.*;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.roster.Roster;
@@ -11,7 +11,6 @@ import org.jivesoftware.smackx.muc.*;
 import org.jivesoftware.smackx.ping.PingFailedListener;
 import org.jivesoftware.smackx.ping.PingManager;
 import org.jxmpp.jid.DomainBareJid;
-import org.jxmpp.jid.EntityFullJid;
 import org.jxmpp.jid.impl.JidCreate;
 import org.jxmpp.jid.parts.Resourcepart;
 import org.jxmpp.stringprep.XmppStringprepException;
@@ -23,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.*;
 
 
 public class XmppConnectionUtil {
@@ -32,6 +32,7 @@ public class XmppConnectionUtil {
     private volatile static AbstractXMPPConnection connection;
     private ConnectionListener connectionListener;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
+    public final static String defaultPassword = "123456";
 
     private XmppConnectionUtil() {}
 
@@ -46,59 +47,53 @@ public class XmppConnectionUtil {
         if (connection == null) {
             synchronized (XmppConnectionUtil.class) {
                 if (connection == null) {
-                    try {
-                        XMPPTCPConnectionConfiguration config = XMPPTCPConnectionConfiguration.builder()
-                                .setXmppDomain(domainName)
-                                .setHost(host)
-                                .setPort(port)
-                                .setSecurityMode(ConnectionConfiguration.SecurityMode.disabled)
-                                .setCompressionEnabled(true)
-                                .setSendPresence(false)
-                                .setDebuggerEnabled(true)
-                                .build();
-                        //设置不需要同意才就可以添加好友
-                        Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
-                        connection = new XMPPTCPConnection(config);
-                        connection.connect();
-                        //设置重连管理器
-                        /*ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
-                        reconnectionManager.enableAutomaticReconnection();*/
-                        //设置ping管理器
-                        PingManager pingManager = PingManager.getInstanceFor(connection);
-                        pingManager.setPingInterval(10);
-                        /*pingManager.pingMyServer(true,1000 * 20);*/
-                        pingManager.registerPingFailedListener(new PingFailedListener() {
-                            @Override
-                            public void pingFailed() {
-                                logger.info("Failed to ping server and reconnect again");
-                                //reconnect();
-                            }
-                        });
-
-                    } catch (SmackException | IOException | XMPPException | InterruptedException e) {
-                        e.printStackTrace();
-                        connection = null;
-                    }
-                    /*new Thread(() -> {
+                    ExecutorService executorService = Executors.newSingleThreadExecutor();
+                    Future<Boolean> smack = executorService.submit(() -> {
                         try {
                             XMPPTCPConnectionConfiguration config = XMPPTCPConnectionConfiguration.builder()
-                                    .setXmppDomain(openfireConfig.getDomainName())
-                                    .setHost(openfireConfig.getHost())
-                                    .setPort(openfireConfig.getPort())
+                                    .setXmppDomain(domainName)
+                                    .setHost(host)
+                                    .setPort(port)
                                     .setSecurityMode(ConnectionConfiguration.SecurityMode.disabled)
                                     .setCompressionEnabled(true)
                                     .setSendPresence(false)
-                                    .setDebuggerEnabled(true)
+                                    .setResource("smack")
+                                    /*            .setDebuggerEnabled(true)*/
                                     .build();
                             //设置不需要同意才就可以添加好友
                             Roster.setDefaultSubscriptionMode(Roster.SubscriptionMode.accept_all);
                             connection = new XMPPTCPConnection(config);
                             connection.connect();
+                            //设置重连管理器
+                        /*ReconnectionManager reconnectionManager = ReconnectionManager.getInstanceFor(connection);
+                        reconnectionManager.enableAutomaticReconnection();*/
+                            //设置ping管理器
+                            PingManager pingManager = PingManager.getInstanceFor(connection);
+                            pingManager.setPingInterval(10);
+                            /*pingManager.pingMyServer(true,1000 * 20);*/
+                            pingManager.registerPingFailedListener(new PingFailedListener() {
+                                @Override
+                                public void pingFailed() {
+                                    logger.info("Failed to ping server and reconnect again");
+                                    //reconnect();
+                                }
+                            });
+                            return true;
                         } catch (SmackException | IOException | XMPPException | InterruptedException e) {
                             e.printStackTrace();
                             connection = null;
+                            return false;
                         }
-                    }).start();*/
+                    });
+                    try {
+                        if (smack.get()) {
+                            return connection;
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    } catch (ExecutionException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }

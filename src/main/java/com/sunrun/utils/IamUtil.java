@@ -3,12 +3,15 @@ package com.sunrun.utils;
 import com.sunrun.common.ImDictionary;
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.entity.Domain;
+import com.sunrun.entity.Org;
+import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.vo.*;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class IamUtil {
@@ -39,6 +43,7 @@ public class IamUtil {
     private final String REFRESH_TOKEN ="refresh_token";
     private final String DOMAIN_ID ="domain_id";
     private final String ORG_ID ="org_id";
+
 
 
 
@@ -136,11 +141,11 @@ public class IamUtil {
         DomainResult result = restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domains") + "?access_token={1}", DomainResult.class, getAccessToken());
         List<DomainVo> domains = result.getDomains();
         return domains.stream()
-                .map((u) -> {
+                .map(u -> {
                     Domain domain = new Domain();
                     domain.setId(u.getId());
                     domain.setName(u.getName());
-                    domain.setUpdateTime(Date.from(LocalDateTime.parse(u.getUpdate_time(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant()));
+                    domain.setUpdateTime(TimeFormatUtil.toDate(u.getUpdate_time()));
                     return domain; })
                 .collect(Collectors.toList());
     }
@@ -150,12 +155,13 @@ public class IamUtil {
     }
     public void addDetails(Domain domain) throws IamConnectionException {
         DomainVo vo = getDomainDetails(domain.getId());
-        domain.setUpdateTime(Date.from(LocalDateTime.parse(vo.getUpdate_time(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant()));
+        domain.setUpdateTime(TimeFormatUtil.toDate(vo.getUpdate_time()));
         domain.setSortNumber(vo.getSort_number());
         domain.setName(vo.getName());
+        domain.setSortNumber(vo.getSort_number());
+        domain.setCreateTime(TimeFormatUtil.toDate(vo.getAdd_time()));
         domain.setSource(ImDictionary.DOMAIN_SOURCE_IAM);
     }
-
 
     public UserVo getUserDetails(Long userId) throws IamConnectionException{
         return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("user")+"?access_token={0}&user_id={1}",UserVo.class, getAccessToken(),userId);
@@ -169,10 +175,6 @@ public class IamUtil {
         return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&org_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),orgId ).getOrgs();
     }
 
-    public static Date dateFormat(String dateStr) {
-        return Date.from(LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atZone(ZoneId.systemDefault()).toInstant());
-    }
-
     public List<OrgVo> getOrganizationaList(Long domainId) throws IamConnectionException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(ACCESS_TOKEN, getAccessToken());
@@ -182,4 +184,50 @@ public class IamUtil {
         return restTemplate.postForObject(iamServer + iamConfig.getUrls().get("orgList"), params, OrganizationVo.class).getOrgs();
     }
 
+
+    public boolean isNeedUpdate(OrgVo vo, Map<Long, Org> orgDictionary) {
+        if (vo != null) {
+            if (orgDictionary.get(vo.getId()) == null) {
+                return true;
+            }
+            return isNeedTimeUpdate(vo.getUpdate_time(),orgDictionary.get(vo.getId()).getUpdateTime());
+        }
+        return false;
+    }
+
+
+    public boolean isNeedUpdate(Domain domain, Map<Long, Domain> localDomains) {
+        if (domain != null) {
+            if (localDomains.get(domain.getId()) == null) {
+                return true;
+            }
+            return isNeedTimeUpdate(domain.getUpdateTime(),localDomains.get(domain.getId()).getUpdateTime());
+        }
+        return false;
+    }
+
+    public boolean isNeedTimeUpdate(Date source,Date dest) {
+        if (source == null) {
+            return dest != null;
+        } else {
+            return !source.equals(dest);
+        }
+    }
+
+    public boolean isNeedTimeUpdate(LocalDateTime before, LocalDateTime after) {
+        if (before == null) {
+            return after != null;
+        } else {
+            return !before.isEqual(after);
+        }
+    }
+
+    public boolean isNameUpdate(String beforeName, String afterName) {
+        if (StringUtils.hasText(beforeName) && StringUtils.hasText(afterName)) {
+            return !beforeName.equals(afterName);
+        } else {
+            throw new NullPointerException("the name of domain can not be null");
+        }
+
+    }
 }

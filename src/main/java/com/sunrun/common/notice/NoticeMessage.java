@@ -86,7 +86,20 @@ public enum NoticeMessage {
 
         OPENFIRE_LOGIN_FAILURE(1030,"无法登录openfire服务器" , "Failed to login the server of openfire"),
 
-        SYNCHRONIZATION_FAILURE(1031,"同步失败" ,"Failed to synchronize the data of IAM" );
+        SYNCHRONIZATION_FAILURE(1031,"同步失败" ,"Failed to synchronize the data of IAM" ),
+
+        CONNECT_IAM_FAILED(1032,"无法连接IAM" ,"Failed to connect IAM" ),
+
+        TASK_NAME_IS_EMPTY(1033,"任务名称不能为空" ,"Empty task name." ),
+
+        TASK_NOT_EXIST(1034,"不存在该任务" ,"The task does not exist." ),
+
+        NOT_PERMISSION(1035,"没有权限删除该任务" ,"No permission to delete." ),
+
+        TASK_EVENT_NOT_EXIST(1036,"不存在该任务事件" ,"The task event does not exist." ),
+
+        FILE_NAME_IS_EMPTY(1037,"文件名不能为空" ,"The file name is empty." );
+
         private int code;
         private String cnMessage;
         private String enMessage;

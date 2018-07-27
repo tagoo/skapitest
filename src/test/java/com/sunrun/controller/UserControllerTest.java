@@ -1,7 +1,7 @@
 package com.sunrun.controller;
 import com.google.gson.Gson;
 import com.sunrun.common.notice.ReturnData;
-import com.sunrun.utils.helper.Property;
+import com.sunrun.entity.Property;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

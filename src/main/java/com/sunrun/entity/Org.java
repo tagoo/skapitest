@@ -2,19 +2,24 @@ package com.sunrun.entity;
 
 
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Table;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-@Entity(name = "tborg")
+@Entity
+@Table(name = "tborg")
 public class Org implements Serializable {
     private static final long serialVersionUID = 7611086524358991266L;
     @Id
     private Long orgId;
     private Long parentId;
     private LocalDateTime updateTime;
+    @Column(nullable = false,unique = true)
     private Long sourceId;
+    @Column(nullable = false)
     private Long domainId;
     private String name;
     private Integer sortNumber;

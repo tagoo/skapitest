@@ -1,10 +1,9 @@
 package com.sunrun.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import org.hibernate.annotations.GenericGenerator;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import java.io.Serializable;
 import java.util.Date;
@@ -15,7 +14,9 @@ public class Domain implements Serializable{
     private static final long serialVersionUID = -4597698791566931790L;
     @Id
     private Long id;
+    @Column(nullable = false)
     private String name;
+    @Column(nullable = false,length = 11)
     private Integer source;
     private Integer sortNumber;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone="GMT+8")
@@ -71,9 +72,6 @@ public class Domain implements Serializable{
         this.source = source;
     }
 
-    public boolean isNeedUpdate(Date newDate){
-        return newDate.equals(getUpdateTime());
-    }
 
     @Override
     public String toString() {

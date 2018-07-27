@@ -12,4 +12,5 @@ public interface MucRoomMemberRepository extends JpaRepository<MucRoomMember,Muc
             " INNER JOIN ofmucmember AS u ON r.roomID = u.roomID" +
             " WHERE r.name = :roomName AND s.subdomain = :serviceName AND u.jid = :jid",nativeQuery = true)
     MucRoomMember findMucRoomByNameAndServiceName(@Param("roomName")String roomName, @Param("serviceName")String serviceName, @Param("jid")String jid);
+
 }

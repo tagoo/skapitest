@@ -3,7 +3,7 @@ package com.sunrun.service.impl;
 import com.sunrun.exception.NotFindPropertyException;
 import com.sunrun.exception.PropertyNameEmptyException;
 import com.sunrun.service.SystemPropertyService;
-import com.sunrun.utils.helper.Property;
+import com.sunrun.entity.Property;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

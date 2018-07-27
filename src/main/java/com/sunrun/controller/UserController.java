@@ -6,30 +6,24 @@ import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnCode;
 import com.sunrun.common.notice.ReturnData;
-import com.sunrun.entity.Domain;
-import com.sunrun.entity.MucRoomMember;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
 import com.sunrun.exception.*;
 import com.sunrun.security.Operate;
 import com.sunrun.service.RosterService;
 import com.sunrun.service.UserService;
+import com.sunrun.support.iam.DomainSyncInfo;
 import com.sunrun.utils.IpUtil;
-import com.sunrun.utils.helper.Property;
+import com.sunrun.entity.Property;
 import com.sunrun.utils.helper.UserData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.repository.query.Param;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/user")
@@ -89,34 +83,40 @@ public class UserController {
     }
 
     @RequestMapping("synchronization")
-    public ReturnCode updateUser(@RequestParam(name = "lang", defaultValue = "zh")String lang) {
+    public ReturnData updateUser(@RequestParam(name = "lang", defaultValue = "zh")String lang) {
         NoticeMessage noticeMessage = NoticeMessage.SYNCHRONIZATION_FAILURE;
+        String message = null;
         try {
-            ReturnData returnData = operate.synchronizeData();
-            if (!returnData.isSuccess()) {
-                Object data = returnData.getData();
-                if (data != null) {
-                    HashMap<String,List<Domain>> domainMap = (HashMap<String,List<Domain>>) data;
-                    List<Domain> failedDomains = domainMap.get("failedDomains");
-                    try {
-                        if (operate.deleteDomainResource(failedDomains)){
-                            logger.info("Deleted successfully the failed synchronization domain.");
-                        } else {
-                            List<Domain> successDomains = domainMap.get("successDomains");
-                            successDomains.addAll(failedDomains);
-                            operate.deleteDomainResource(successDomains);
-                        }
-                    } catch (CannotFindDomain e) {
-                        e.printStackTrace();
-                    }
+            if (!operate.synchronizeData()) {
+                if (operate.deleteDomainResource(DomainSyncInfo.getFailedDomains())){
+                    logger.info("Deleted successfully the failed synchronization domain.");
+                } else {
+                    operate.deleteDomainResource(DomainSyncInfo.getSuccessDomains());
                 }
             } else {
                 noticeMessage = NoticeMessage.SUCCESS;
             }
         } catch (IamConnectionException e) {
+            noticeMessage = NoticeMessage.CONNECT_IAM_FAILED;
+            e.printStackTrace();
+        }  catch (NotFindMucServiceException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } catch (SyncOrgException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } catch (CannotFindDomain e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } catch (GetUserException e) {
+            noticeMessage = NoticeMessage.CONNECT_IAM_FAILED;
             e.printStackTrace();
         }
-        return NoticeFactory.createNotice(noticeMessage, lang);
+        ReturnData notice = NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+        if (message != null) {
+            notice.setMsg(message);
+        }
+        return notice;
     }
 
     @RequestMapping("{userName}")

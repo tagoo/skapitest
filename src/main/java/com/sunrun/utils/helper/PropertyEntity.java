@@ -1,5 +1,7 @@
 package com.sunrun.utils.helper;
 
+import com.sunrun.entity.Property;
+
 import java.util.List;
 
 public class PropertyEntity {

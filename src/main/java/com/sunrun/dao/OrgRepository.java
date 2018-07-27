@@ -5,6 +5,8 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
+
 @CacheConfig(cacheNames = "user")
 public interface OrgRepository extends JpaRepository<Org,Long> {
 
@@ -12,4 +14,6 @@ public interface OrgRepository extends JpaRepository<Org,Long> {
 
     @Query(value = "SELECT COUNT(1) FROM tborg where domainId = ?1",nativeQuery = true)
     int selectCountByDomainId(Long domainId);
+
+    List<Org> findByDomainId(Long id);
 }

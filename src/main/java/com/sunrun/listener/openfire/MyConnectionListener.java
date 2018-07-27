@@ -1,4 +1,4 @@
-package com.sunrun.openfire;
+package com.sunrun.listener.openfire;
 
 
 import org.jivesoftware.smack.AbstractConnectionListener;

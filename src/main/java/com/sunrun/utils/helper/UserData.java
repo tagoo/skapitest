@@ -1,5 +1,7 @@
 package com.sunrun.utils.helper;
 
+import com.sunrun.entity.Property;
+
 import java.io.Serializable;
 import java.util.List;
 

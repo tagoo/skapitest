@@ -1,8 +1,7 @@
 package com.sunrun.security.sync;
 
-import com.sunrun.common.notice.ReturnData;
-import com.sunrun.exception.IamConnectionException;
+import com.sunrun.exception.*;
 
 public interface Synchronize {
-    ReturnData synchronizeData() throws IamConnectionException;
+    boolean synchronizeData() throws IamConnectionException, NotFindMucServiceException, SyncOrgException, CannotFindDomain, GetUserException;
 }

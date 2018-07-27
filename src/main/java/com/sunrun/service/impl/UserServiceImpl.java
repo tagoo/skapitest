@@ -5,11 +5,8 @@ import com.sunrun.common.notice.ReturnData;
 import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.RosterRepository;
 import com.sunrun.entity.*;
-import com.sunrun.exception.IamConnectionException;
-import com.sunrun.exception.NameAlreadyExistException;
-import com.sunrun.exception.NotFindUserException;
+import com.sunrun.exception.*;
 import com.sunrun.dao.UserRepository;
-import com.sunrun.exception.OpenfireLoginFailureException;
 import com.sunrun.security.Operate;
 import com.sunrun.service.MucRoomService;
 import com.sunrun.service.UserService;
@@ -107,7 +104,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public ReturnData updateUserList() throws IamConnectionException{
+    public boolean updateUserList() throws IamConnectionException, NotFindMucServiceException, SyncOrgException, CannotFindDomain, GetUserException {
         return  operate.synchronizeData();
     }
 

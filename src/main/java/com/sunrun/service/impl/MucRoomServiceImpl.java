@@ -14,7 +14,7 @@ import com.sunrun.exception.NotFindRoomException;
 import com.sunrun.service.MucRoomService;
 import com.sunrun.utils.RestApiUtil;
 import com.sunrun.utils.helper.ChatRoom;
-import com.sunrun.utils.helper.Property;
+import com.sunrun.entity.Property;
 import com.sunrun.utils.helper.Role;
 import com.sunrun.utils.helper.UserData;
 import org.slf4j.Logger;
@@ -25,7 +25,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
