@@ -45,7 +45,7 @@ public class TestServiceImpl implements TestService {
 
     @Override
     public void login() {
-        List<User> byDomainId = userRepository.findByDomainId(1L);
+        List<User> byDomainId = userRepository.findByDomainId(1);
         ExecutorService executorService = Executors.newFixedThreadPool(50);
         for (User u : byDomainId) {
                 executorService.submit(() -> {

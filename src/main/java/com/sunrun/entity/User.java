@@ -3,10 +3,7 @@ package com.sunrun.entity;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.hibernate.annotations.GenericGenerator;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,13 +16,12 @@ public class User implements Serializable{
     @GenericGenerator(name = "snowflakeId",strategy = "com.sunrun.utils.IDGenerator")
     private Long id;
     private Long sourceId;
-    @Column(name = "orgId")
-    private Long orgId;
-    private Long domainId;
+    private Integer domainId;
+    /*private Long orgId;*/
     private Integer sortNumber;
     @Column(name = "userName")
     private String userName;
-    @Column(name = "userPassword")
+    @Column(name = "userPassword",updatable = false)
     private String userPassword;
     private String userRealName;
     private String userDescription;
@@ -49,6 +45,9 @@ public class User implements Serializable{
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime ;
     private String iamUserHead ;
+    @ManyToOne(fetch=FetchType.EAGER)
+    @JoinColumn(name="orgId",foreignKey = @ForeignKey(name = "none",value = ConstraintMode.NO_CONSTRAINT))
+    private Org org;
 
     public Long getId() {
         return id;
@@ -66,19 +65,11 @@ public class User implements Serializable{
         this.sourceId = sourceId;
     }
 
-    public Long getOrgId() {
-        return orgId;
-    }
-
-    public void setOrgId(Long orgId) {
-        this.orgId = orgId;
-    }
-
-    public Long getDomainId() {
+    public Integer getDomainId() {
         return domainId;
     }
 
-    public void setDomainId(Long domainId) {
+    public void setDomainId(Integer domainId) {
         this.domainId = domainId;
     }
 
@@ -258,21 +249,37 @@ public class User implements Serializable{
         this.iamUserHead = iamUserHead;
     }
 
+    public Org getOrg() {
+        return org;
+    }
+
+    public void setOrg(Org org) {
+        this.org = org;
+    }
+
+    /*public Long getOrgId() {
+        return orgId;
+    }
+
+    public void setOrgId(Long orgId) {
+        this.orgId = orgId;
+    }*/
+
     @Override
     public String toString() {
         return "User{" +
                 "id=" + id +
                 ", sourceId=" + sourceId +
-                ", orgId=" + orgId +
                 ", domainId=" + domainId +
+                ", orgId=" + org.getOrgId() +
                 ", sortNumber=" + sortNumber +
                 ", userName='" + userName + '\'' +
                 ", userPassword='" + userPassword + '\'' +
                 ", userRealName='" + userRealName + '\'' +
                 ", userDescription='" + userDescription + '\'' +
                 ", userHead='" + userHead + '\'' +
-                ", userBirthday='" + userBirthday + '\'' +
-                ", registerDate='" + registerDate + '\'' +
+                ", userBirthday=" + userBirthday +
+                ", registerDate=" + registerDate +
                 ", longitude='" + longitude + '\'' +
                 ", latitude='" + latitude + '\'' +
                 ", userEmail='" + userEmail + '\'' +

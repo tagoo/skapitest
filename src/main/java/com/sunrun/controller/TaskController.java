@@ -148,7 +148,7 @@ public class TaskController {
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, event);
     }
-    @GetMapping("event/{taskJID}")
+    @GetMapping("events/{taskJID}")
     public ReturnData findEvents(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                                  @PathVariable(name = "taskJID") String  taskJID,
                                  @RequestParam(name = "page",defaultValue = "0",required = false)int page,
@@ -164,6 +164,18 @@ public class TaskController {
             noticeMessage = NoticeMessage.SUCCESS;
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, taskEventList);
+    }
+
+    @GetMapping("event/{id}")
+    public ReturnData findEvents(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                 @PathVariable(name = "id") Integer  id){
+        NoticeMessage noticeMessage = NoticeMessage.POST_PARAMS_ERROR;
+        TaskEvent event = null;
+        if (id != null){
+            event = taskService.findEventById(id);
+            noticeMessage = NoticeMessage.SUCCESS;
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, event);
     }
 
     @RequestMapping(value = "event/update", method = RequestMethod.PATCH )
@@ -266,13 +278,17 @@ public class TaskController {
                                 @RequestParam(name = "size",defaultValue = "15",required = false)int size){
         NoticeMessage noticeMessage = NoticeMessage.POST_PARAMS_ERROR;
         Page<Task> taskList = null;
-        if (StringUtils.hasText(roomJID)){
-            Pageable pageable =  null;
-            if (page > -1) {
-                pageable = PageRequest.of (page,size);
+        try {
+            if (StringUtils.hasText(roomJID)){
+                Pageable pageable =  null;
+                if (page > -1) {
+                    pageable = PageRequest.of (page,size);
+                }
+                taskList =  taskService.findAllByRoomJID(roomJID,pageable);
+                noticeMessage = NoticeMessage.SUCCESS;
             }
-            taskList =  taskService.findAllByRoomJID(roomJID,pageable);
-            noticeMessage = NoticeMessage.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, taskList);
     }

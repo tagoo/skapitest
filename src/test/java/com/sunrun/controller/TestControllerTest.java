@@ -13,6 +13,9 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.junit.Assert.*;
 @SpringBootTest
 @RunWith(SpringRunner.class)
@@ -22,7 +25,16 @@ public class TestControllerTest {
     private MockMvc mockMvc;
     @Test
     public void testDemo() {
-        MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
+        String str = "http://192.178.12.232:880";
+        String pattern = "(25[0-5]|2[0-4]\\d|[0-1]\\d{2}|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|[0-1]\\d{2}|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|[0-1]\\d{2}|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|[0-1]\\d{2}|[1-9]?\\d)";
+
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(str);
+        if (m.find()) {
+            System.out.println(m.group());
+        }
+
+        /*MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
         try {
             MvcResult mvcResult = mockMvc.perform(MockMvcRequestBuilders.post("/test").params(params))
                     .andExpect(MockMvcResultMatchers.status().isOk())
@@ -30,7 +42,7 @@ public class TestControllerTest {
             System.out.println(mvcResult.getResponse().getContentAsString());
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
 
     }
 }

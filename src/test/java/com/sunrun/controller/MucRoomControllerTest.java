@@ -76,7 +76,7 @@ public class MucRoomControllerTest {
 
     @Test
     public void addMember() {
-        List<User> byDomainId = userRepository.findByDomainId(1L);
+        List<User> byDomainId = userRepository.findByDomainId(1);
         for (User u: byDomainId) {
             MultiValueMap<String,String> params = new LinkedMultiValueMap<>();
             params.add("roomName","test");

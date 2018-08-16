@@ -44,9 +44,6 @@ public class IamUtil {
     private final String DOMAIN_ID ="domain_id";
     private final String ORG_ID ="org_id";
 
-
-
-
     private static class InstanceFactory{
         private static IamUtil instance = new IamUtil();
     }
@@ -150,7 +147,7 @@ public class IamUtil {
                 .collect(Collectors.toList());
     }
 
-    public DomainVo getDomainDetails(Long domainId) throws IamConnectionException{
+    public DomainVo getDomainDetails(Integer domainId) throws IamConnectionException{
        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domain") + "?access_token={0}&domain_id={1}", DomainVo.class, getAccessToken(), domainId);
     }
     public void addDetails(Domain domain) throws IamConnectionException {
@@ -175,7 +172,7 @@ public class IamUtil {
         return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&org_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),orgId ).getOrgs();
     }
 
-    public List<OrgVo> getOrganizationaList(Long domainId) throws IamConnectionException {
+    public List<OrgVo> getOrganizationaList(Integer domainId) throws IamConnectionException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(ACCESS_TOKEN, getAccessToken());
         params.add(DOMAIN_ID, domainId.toString());
@@ -196,7 +193,7 @@ public class IamUtil {
     }
 
 
-    public boolean isNeedUpdate(Domain domain, Map<Long, Domain> localDomains) {
+    public boolean isNeedUpdate(Domain domain, Map<Integer, Domain> localDomains) {
         if (domain != null) {
             if (localDomains.get(domain.getId()) == null) {
                 return true;

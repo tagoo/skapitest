@@ -3,6 +3,7 @@ package com.sunrun.utils;
 
 import com.sunrun.common.config.RestApiConfig;
 import com.sunrun.entity.Property;
+import com.sunrun.exception.DomainInvalidException;
 import com.sunrun.utils.helper.*;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -30,7 +31,7 @@ public class RestApiUtil {
     public void setRestTemplate(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
-    public ResponseEntity<String> creatChatRoom(ChatRoom chatRoom, String serviceName) {
+    public ResponseEntity<String> createChatRoom(ChatRoom chatRoom, String serviceName) {
         HttpEntity<ChatRoom> requestEntity = new HttpEntity<>(chatRoom, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
         return restTemplate.postForEntity(getUrlWithServiceName("room",serviceName), requestEntity, String.class);
     }
@@ -132,7 +133,7 @@ public class RestApiUtil {
         return HttpStatus.OK == result.getStatusCode();
     }
 
-    public List<ChatRoom> getAllChatRooms(String serviceName, String type, String search) {
+    public List<ChatRoom> getAllChatRooms(String serviceName, String type, String search) throws DomainInvalidException {
         HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8,Arrays.asList(MediaType.APPLICATION_JSON_UTF8)));
         StringBuilder url = new StringBuilder(getUrlWithServiceName("room", serviceName));
         if (type != null) {
@@ -140,6 +141,9 @@ public class RestApiUtil {
         }
         if (search != null) {
             url.append(url.toString().contains("?")? "&search=" + search: "?search="+search);
+        }
+        if (serviceName != null && serviceName.contains("_")){
+            throw new DomainInvalidException();
         }
         ResponseEntity<RoomData> result = restTemplate.exchange(url.toString(), HttpMethod.GET, requestEntity, RoomData.class);
         return result.getBody().getChatRooms();

@@ -20,7 +20,12 @@ public class SystemPropertyServiceImplTest {
     private SystemPropertyService systemPropertyService;
     @Test
     public void findPropertyByPropertyName() {
-        Property propertyByPropertyName = systemPropertyService.findPropertyByPropertyName("2221");
+        Property propertyByPropertyName = null;
+        try {
+            propertyByPropertyName = systemPropertyService.findPropertyByPropertyName("2221");
+        } catch (NotFindPropertyException e) {
+            e.printStackTrace();
+        }
         System.out.println(propertyByPropertyName);
         Assert.assertNotNull(propertyByPropertyName);
     }

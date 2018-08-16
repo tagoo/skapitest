@@ -34,4 +34,6 @@ public interface TaskService {
     Page<TaskFile> findAllFiles(String taskJID, Pageable pageable);
 
     Page<Task> findAllByRoomJID(String roomJID, Pageable pageable);
+
+    TaskEvent findEventById(Integer id);
 }

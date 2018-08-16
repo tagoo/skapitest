@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class SystemPropertyServiceImpl implements SystemPropertyService {
@@ -21,9 +22,13 @@ public class SystemPropertyServiceImpl implements SystemPropertyService {
     private SystemPropertyRepository systemPropertyRepository;
 
     @Override
-    public Property findPropertyByPropertyName(String propertyName) {
+    public Property findPropertyByPropertyName(String propertyName) throws NotFindPropertyException {
         if (hasNotInit()) {
-            return systemPropertyRepository.findById(propertyName).get();
+            Optional<Property> byId = systemPropertyRepository.findById(propertyName);
+            if (byId.isPresent()) {
+                return byId.get();
+            }
+            throw new NotFindPropertyException(propertyName);
         }
         return restApiUtil.getSystemProperty(propertyName);
     }

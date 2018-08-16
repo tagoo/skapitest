@@ -363,4 +363,10 @@ public class TaskServiceImpl implements TaskService{
     public Page<Task> findAllByRoomJID(String roomJID, Pageable pageable) {
         return taskRepository.findAllByRoomJID(roomJID, pageable);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TaskEvent findEventById(Integer id) {
+        return taskEventRepository.getOne(id);
+    }
 }

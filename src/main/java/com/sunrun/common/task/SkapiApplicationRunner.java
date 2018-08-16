@@ -2,8 +2,10 @@ package com.sunrun.common.task;
 
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.common.config.RestApiConfig;
+import com.sunrun.dao.OrgRepository;
 import com.sunrun.dao.SystemPropertyRepository;
 import com.sunrun.dao.UserRepository;
+import com.sunrun.entity.Org;
 import com.sunrun.entity.User;
 import com.sunrun.exception.*;
 import com.sunrun.security.Operate;
@@ -55,7 +57,7 @@ public class SkapiApplicationRunner implements ApplicationRunner {
         synchronizeInit();
     }
 
-    private void synchronizeInit() throws SyncOrgException, CannotFindDomain, IamConnectionException, GetUserException, NotFindMucServiceException {
+    private void synchronizeInit() throws SyncOrgException, CannotFindDomain, IamConnectionException, GetUserException, NotFindMucServiceException, SyncAlreadyRunningException {
         logger.info("Start synchronizing user data of the IAM server");
         Property property = SystemPropertyInfo.getProperties().get(SystemPropertyInfo.IAM_FIRST_SYNCHRONIZATION_INIT);
         if (property == null) {
@@ -63,7 +65,7 @@ public class SkapiApplicationRunner implements ApplicationRunner {
             SystemPropertyInfo.getProperties().put(property.getKey(),property);
             systemPropertyRepository.save(property);
             operate.synchronizeData();
-            if (!Boolean.parseBoolean(SystemPropertyInfo.getProperties().get(SystemPropertyInfo.IAM_FIRST_SYNCHRONIZATION_INIT).getValue())){
+            if (SystemPropertyInfo.Status.success != SystemPropertyInfo.Status.fromString(SystemPropertyInfo.getProperties().get(SystemPropertyInfo.IAM_FIRST_SYNCHRONIZATION_INIT).getValue())){
                 operate.deleteDomainResource(DomainSyncInfo.getFailedDomains());
             }
         }
@@ -131,8 +133,9 @@ public class SkapiApplicationRunner implements ApplicationRunner {
         user.setUserName(split[0]);
         user.setUserRealName("Administrator");
         user.setUserPassword(DigestUtils.sha1Hex(split[1].getBytes()));
-        user.setDomainId(-1L);
-        user.setOrgId(-1L);
+        user.setDomainId(-1);
+        /*user.setOrgId(-1L);*/
+        user.setOrg(null);
         userRepository.save(user);
     }
 

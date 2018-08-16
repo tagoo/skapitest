@@ -1,11 +1,8 @@
 package com.sunrun.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -20,9 +17,11 @@ public class Org implements Serializable {
     @Column(nullable = false,unique = true)
     private Long sourceId;
     @Column(nullable = false)
-    private Long domainId;
+    private Integer domainId;
     private String name;
     private Integer sortNumber;
+    @Transient
+    private boolean hasChild;
 
     public Long getOrgId() {
         return orgId;
@@ -44,6 +43,7 @@ public class Org implements Serializable {
         return updateTime;
     }
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     public void setUpdateTime(LocalDateTime updateTime) {
         this.updateTime = updateTime;
     }
@@ -56,11 +56,11 @@ public class Org implements Serializable {
         this.sourceId = sourceId;
     }
 
-    public Long getDomainId() {
+    public Integer getDomainId() {
         return domainId;
     }
 
-    public void setDomainId(Long domainId) {
+    public void setDomainId(Integer domainId) {
         this.domainId = domainId;
     }
 
@@ -78,6 +78,14 @@ public class Org implements Serializable {
 
     public void setSortNumber(Integer sortNumber) {
         this.sortNumber = sortNumber;
+    }
+
+    public boolean isHasChild() {
+        return hasChild;
+    }
+
+    public void setHasChild(boolean hasChild) {
+        this.hasChild = hasChild;
     }
 
     @Override

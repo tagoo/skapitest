@@ -27,7 +27,7 @@ public class ReturnData extends ReturnCode {
     }
 
     public void setSuccess(boolean success) {
-        success = success;
+        this.success = success;
     }
 
     public Object getData() {

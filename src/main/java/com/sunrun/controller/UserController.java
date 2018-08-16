@@ -2,6 +2,7 @@ package com.sunrun.controller;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.sunrun.common.Constant;
 import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnCode;
@@ -9,6 +10,7 @@ import com.sunrun.common.notice.ReturnData;
 import com.sunrun.entity.Roster;
 import com.sunrun.entity.User;
 import com.sunrun.exception.*;
+import com.sunrun.po.UserPo;
 import com.sunrun.security.Operate;
 import com.sunrun.service.RosterService;
 import com.sunrun.service.UserService;
@@ -19,24 +21,59 @@ import com.sunrun.utils.helper.UserData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/user")
 public class UserController {
-
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     @Autowired
     private UserService userService;
     @Autowired
+    private RedisTemplate redisTemplate;
+    @Autowired
     private Operate operate;
     @Autowired
     private RosterService rosterService;
-
+    @PostMapping("admin/login")
+    public ReturnData adminLogin(User user, @RequestParam(name = "lang", defaultValue = "zh") String lang, HttpServletRequest request, HttpSession session) {
+        NoticeMessage noticeMessage = null;
+        Map<String,Object> data = null;
+        String ip = IpUtil.getIpAddrAdvanced(request);
+        logger.info("ip=" + ip);
+        if (!StringUtils.hasText(user.getUserName()) || !StringUtils.hasText(user.getUserPassword())) {
+            noticeMessage = NoticeMessage.USERNAME_OR_PASSWORD_IS_NULL;
+        } else {
+            try {
+                //AES加密
+                User user1 = userService.loginByUser(user, session);
+                if (user1 != null) {
+                    noticeMessage = NoticeMessage.SUCCESS;
+                    data =  new HashMap<>();
+                    data.put("user",user1);
+                    data.put("token",session.getId());
+                }
+            } catch (NotFindUserException e) {
+                e.printStackTrace();
+                noticeMessage = NoticeMessage.USERNAME_OR_PASSWORD_ERROR;
+            }
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
+    }
     @RequestMapping(value = "login", method = RequestMethod.POST)
     public ReturnData login(User user, @RequestParam(name = "lang", defaultValue = "zh") String lang, @RequestParam(name = "st") String st, HttpServletRequest request) {
         NoticeMessage noticeMessage = null;
@@ -86,16 +123,23 @@ public class UserController {
     public ReturnData updateUser(@RequestParam(name = "lang", defaultValue = "zh")String lang) {
         NoticeMessage noticeMessage = NoticeMessage.SYNCHRONIZATION_FAILURE;
         String message = null;
+        Boolean mark = false;
         try {
-            if (!operate.synchronizeData()) {
-                if (operate.deleteDomainResource(DomainSyncInfo.getFailedDomains())){
+            mark = redisTemplate.hasKey(Constant.SYNCHRONIZATION_MARK);
+            if (mark) {
+                noticeMessage = NoticeMessage.SYNCHRONIZATION_RUNNING;
+                logger.warn(noticeMessage.getMessage(lang));
+            } else {
+                redisTemplate.opsForValue().set(Constant.SYNCHRONIZATION_MARK,"true",30, TimeUnit.MINUTES);
+                if (!operate.synchronizeData()) {
+                    if (operate.deleteDomainResource(DomainSyncInfo.getFailedDomains())){
                     logger.info("Deleted successfully the failed synchronization domain.");
                 } else {
                     operate.deleteDomainResource(DomainSyncInfo.getSuccessDomains());
                 }
             } else {
-                noticeMessage = NoticeMessage.SUCCESS;
-            }
+                noticeMessage = NoticeMessage.SYNCHRONIZATION_SUCCESS;
+            }}
         } catch (IamConnectionException e) {
             noticeMessage = NoticeMessage.CONNECT_IAM_FAILED;
             e.printStackTrace();
@@ -111,15 +155,20 @@ public class UserController {
         } catch (GetUserException e) {
             noticeMessage = NoticeMessage.CONNECT_IAM_FAILED;
             e.printStackTrace();
+        } finally {
+            if (!mark) {
+                redisTemplate.delete(Constant.SYNCHRONIZATION_MARK);
+            }
         }
-        ReturnData notice = NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+        ReturnData notice = NoticeFactory.createNoticeWithFlag(noticeMessage, lang);
         if (message != null) {
             notice.setMsg(message);
         }
+        notice.setSuccess(noticeMessage == NoticeMessage.SYNCHRONIZATION_SUCCESS);
         return notice;
     }
 
-    @RequestMapping("{userName}")
+    @GetMapping("{userName}")
     public ReturnData getUser(@RequestParam(name = "lang", defaultValue = "zh")String lang,
                               @PathVariable(name = "userName")String userName){
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
@@ -202,5 +251,77 @@ public class UserController {
             noticeMessage = NoticeMessage.USER_NOT_EXIST;
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+    }
+
+    @GetMapping("domain/{domainId}")
+    public ReturnData getUserList(@RequestParam(name = "lang", defaultValue = "zh")String lang,
+                                  @PathVariable(name = "domainId")Integer domainId,
+                                  @RequestParam(name = "orgId",required = false)Long orgId,
+                                  @RequestParam(name = "page",defaultValue = "0")int page,
+                                  @RequestParam(name = "size",defaultValue = "100")int size,
+                                  @RequestParam(name = "sort", required = false) String sort,
+                                  @RequestParam(name = "search",required = false)String search,
+                                  @RequestParam(name = "order",required = false,defaultValue = "asc")String order){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        Pageable pageable ;
+        Page<User> data = null;
+        try {
+            if (sort != null) {
+                Sort sort1 = Sort.by(Sort.Direction.fromString(order),sort);
+                pageable = PageRequest.of(page, size,sort1);
+            } else {
+                pageable = PageRequest.of(page,size);
+            }
+            data = userService.getUserListByDomainId(domainId,orgId,search,pageable);
+            noticeMessage = NoticeMessage.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
+    }
+    @GetMapping("list/{domainId}")
+    public ReturnData getUserListByDomainId(@RequestParam(name = "lang", defaultValue = "zh")String lang,
+                                  @PathVariable(name = "domainId")Integer domainId,
+                                  @RequestParam(name = "search",required = false)String search){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        List<User> data  = null;
+        try {
+            data = userService.getUserListByDomainId(domainId,search);
+            noticeMessage = NoticeMessage.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
+    }
+
+    @GetMapping("org/{orgId}")
+    public ReturnData getUserListByOrgId(@RequestParam(name = "lang", defaultValue = "zh")String lang,
+                                         @PathVariable(name = "orgId")Long orgId,
+                                         @RequestParam(name = "page",defaultValue = "0")int page,
+                                         @RequestParam(name = "size",defaultValue = "100")int size){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        Page<User> data = null;
+        try {
+            Pageable pageable = PageRequest.of(page,size);
+            data = userService.getUserListByOrgId(orgId,pageable);
+            noticeMessage = NoticeMessage.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, data);
+    }
+
+
+    @RequestMapping("logout")
+    public ReturnCode logout(@RequestParam(name = "lang", defaultValue = "zh")String lang, HttpSession session){
+        NoticeMessage noticeMessage = NoticeMessage.FAILED;
+        System.out.println("session is new:" + session.isNew());
+        try {
+            session.invalidate();
+            noticeMessage = NoticeMessage.SUCCESS;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return NoticeFactory.createNotice(noticeMessage, lang);
     }
 }

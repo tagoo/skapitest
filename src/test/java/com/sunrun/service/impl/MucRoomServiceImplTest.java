@@ -12,11 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-import static org.junit.Assert.*;
 @SpringBootTest
 @RunWith(SpringRunner.class)
 public class MucRoomServiceImplTest {
@@ -33,7 +29,7 @@ public class MucRoomServiceImplTest {
         chatRoom.setAdmins(Arrays.asList("demo1@sunrun"));
         chatRoom.setDefaultProp();
         try {
-            Assert.assertNotNull(mucRoomService.save(chatRoom,"chat"));
+            Assert.assertNotNull(mucRoomService.save(chatRoom,"chat", null));
         } catch (NameAlreadyExistException e) {
             e.printStackTrace();
         }
@@ -48,7 +44,7 @@ public class MucRoomServiceImplTest {
         chatRoom.setOwners(Arrays.asList("zhaoyi@sunrun"));
         chatRoom.setAdmins(Arrays.asList("user3@sunrun","user4@sunrun"));
         try {
-            Assert.assertTrue(mucRoomService.update(chatRoom,"conference"));
+            Assert.assertTrue(mucRoomService.update(chatRoom,"conference", null));
         } catch (NotFindRoomException e) {
             e.printStackTrace();
         }

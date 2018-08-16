@@ -13,8 +13,8 @@ import java.util.Date;
 public class Domain implements Serializable{
     private static final long serialVersionUID = -4597698791566931790L;
     @Id
-    private Long id;
-    @Column(nullable = false)
+    private Integer id;
+    @Column(nullable = false,unique = true)
     private String name;
     @Column(nullable = false,length = 11)
     private Integer source;
@@ -24,11 +24,11 @@ public class Domain implements Serializable{
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone="GMT+8")
     private Date createTime;
 
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 

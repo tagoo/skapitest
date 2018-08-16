@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface SystemPropertyService {
 
-    Property findPropertyByPropertyName(String propertyName);
+    Property findPropertyByPropertyName(String propertyName) throws NotFindPropertyException;
 
     List<Property> getAllProperties();
 

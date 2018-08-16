@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface TaskEventRepository extends JpaRepository<TaskEvent,Integer> {
+
     void deleteByTaskJID(String taskJid);
 
     TaskEvent findByIdAndTaskJID(Integer id, String taskJId);

@@ -30,13 +30,15 @@ public enum NoticeMessage {
 
         GROUND_ID_OR_USERNAME_IS_NULL(1010, "群ID或用户名不可为空", "Empty group ID or user name"),
 
-        NOT_BELONG_TO_ROOM(1011, "用户不属于此房间", "Error, not a group member"),
+        USER_NOT_LOGIN(1011,"用户未登录" ,"The User is not login" ),
 
         USER_REPEAT_ROOM_MEMBER(1012, "用户是房间拥有者", "Error, already a room owner"),
 
         LONGITUDES_OR_LATITUDES_IS_NULL(1013, "用户名,经度或纬度为空", "Empty user name, longitude or latitude"),
 
         USER_NOT_EXIST(1014, "用户不存在", "Error, User Not exist"),
+
+
 
         USERNAME_ILLEGAL_FORMAT(1015, "用户名,联系人为空或格式不正确", "Empty user name or illegal format"),
 
@@ -98,7 +100,17 @@ public enum NoticeMessage {
 
         TASK_EVENT_NOT_EXIST(1036,"不存在该任务事件" ,"The task event does not exist." ),
 
-        FILE_NAME_IS_EMPTY(1037,"文件名不能为空" ,"The file name is empty." );
+        FILE_NAME_IS_EMPTY(1037,"文件名不能为空" ,"The file name is empty." ),
+
+        NOT_BELONG_TO_ROOM(1038, "用户不属于此房间", "Error, not a group member"),
+
+        SYNCHRONIZATION_SUCCESS(1039, "同步用户数据成功", "Synchronize user data success"),
+
+        DOMAIN_INVALID(1040,"域名含有非法字符" ,"Invalid domain name." ),
+
+        ROOM_NEED_AT_LEAST_OWNER(1041, "创建群至少需要1个拥有者", "The room must have at least one owner."),
+
+        SYNCHRONIZATION_RUNNING(1042,"用户数据正在同步中，请稍后再试！" ,"User data is being synchronized,Please try again later!" );
 
         private int code;
         private String cnMessage;
@@ -128,6 +140,12 @@ public enum NoticeMessage {
                 this.enMessage = enMessage;
         }
 
+        public String getMessage(String lang){
+                if ("zh".equalsIgnoreCase(lang)){
+                        return getCnMessage();
+                }
+                return getEnMessage();
+        }
         NoticeMessage(int code, String cnMessage, String enMessage) {
                 this.code = code;
                 this.cnMessage = cnMessage;

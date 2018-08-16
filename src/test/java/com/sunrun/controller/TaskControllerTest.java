@@ -113,7 +113,7 @@ public class TaskControllerTest {
         MvcResult mvcResult = null;
         Gson gson = new Gson();
         try {
-            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/task/event/1fc34c6c-ccd2-4331-802b-e2ddfe5bc112").params(params))
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/task/events/1fc34c6c-ccd2-4331-802b-e2ddfe5bc112").params(params))
                     .andExpect(MockMvcResultMatchers.status().isOk())
                     .andReturn();
             ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
@@ -188,7 +188,7 @@ public class TaskControllerTest {
         MvcResult mvcResult = null;
         Gson gson = new Gson();
         try {
-            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/task/file/1fc34c6c-ccd2-4331-802b-e2ddfe5bc112?page=1&size=3"))
+            mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/task/files/1fc34c6c-ccd2-4331-802b-e2ddfe5bc112?page=1&size=3"))
                     .andExpect(MockMvcResultMatchers.status().isOk())
                     .andReturn();
             ReturnData returnData = gson.fromJson(mvcResult.getResponse().getContentAsString(), ReturnData.class);
