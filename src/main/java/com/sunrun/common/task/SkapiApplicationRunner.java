@@ -2,10 +2,8 @@ package com.sunrun.common.task;
 
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.common.config.RestApiConfig;
-import com.sunrun.dao.OrgRepository;
 import com.sunrun.dao.SystemPropertyRepository;
 import com.sunrun.dao.UserRepository;
-import com.sunrun.entity.Org;
 import com.sunrun.entity.User;
 import com.sunrun.exception.*;
 import com.sunrun.security.Operate;
@@ -13,7 +11,6 @@ import com.sunrun.service.SystemPropertyService;
 import com.sunrun.support.iam.DomainSyncInfo;
 import com.sunrun.support.iam.SystemPropertyInfo;
 import com.sunrun.utils.IamUtil;
-import com.sunrun.utils.RestApiUtil;
 import com.sunrun.entity.Property;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
@@ -26,8 +23,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.Resource;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -135,6 +130,7 @@ public class SkapiApplicationRunner implements ApplicationRunner {
         user.setUserPassword(DigestUtils.sha1Hex(split[1].getBytes()));
         user.setDomainId(-1);
         /*user.setOrgId(-1L);*/
+        user.setRole(User.Role.admin);
         user.setOrg(null);
         userRepository.save(user);
     }

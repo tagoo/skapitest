@@ -2,18 +2,25 @@ package com.sunrun.controller;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageInfo;
+import com.sunrun.common.Constant;
 import com.sunrun.common.OpenfireSystemProperties;
 import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnData;
+import com.sunrun.entity.Domain;
 import com.sunrun.entity.MucRoom;
 import com.sunrun.entity.MucRoomMember;
 import com.sunrun.exception.*;
+import com.sunrun.po.MucRoomPo;
+import com.sunrun.service.DomainService;
 import com.sunrun.service.MucRoomService;
+import com.sunrun.service.MucServiceService;
 import com.sunrun.support.iam.SystemPropertyInfo;
+import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.utils.helper.ArraysUtil;
 import com.sunrun.utils.helper.ChatRoom;
 import com.sunrun.utils.helper.Role;
+import lombok.extern.slf4j.Slf4j;
 import org.jxmpp.jid.impl.JidCreate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +35,14 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/room")
+@Slf4j
 public class MucRoomController {
     @Autowired
     private MucRoomService mucRoomService;
-    private static final Logger logger = LoggerFactory.getLogger(MucRoomController.class);
-
+    @Autowired
+    private DomainService domainService;
+    @Autowired
+    private MucServiceService mucServiceService;
     @PostMapping("save")
     public ReturnData save(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                            @RequestParam(value = "nickName", defaultValue = "") String nickName,
@@ -40,7 +50,6 @@ public class MucRoomController {
                            @RequestParam(value = "domainId", required = false) Integer domainId,
                            ChatRoom chatRoom) {
         NoticeMessage noticeMessage = NoticeMessage.POST_PARAMS_ERROR;
-        ChatRoom room = null;
         if (StringUtils.hasText(chatRoom.getRoomName()) && StringUtils.hasText(chatRoom.getNaturalName())) {
             if (chatRoom.getDescription() == null) {
                 chatRoom.setDescription("");
@@ -54,13 +63,19 @@ public class MucRoomController {
                     chatRoom.setAdmins(ArraysUtil.toListWithDomain(chatRoom.getAdmins()));
                 }
                 try {
-                    room = mucRoomService.save(chatRoom, serviceName, domainId);
+                    if (null != domainId) {
+                        serviceName = getServiceName(domainId);
+                    }
+                    ChatRoom room = mucRoomService.save(chatRoom, serviceName);
                     if (room != null) {
                         noticeMessage = NoticeMessage.SUCCESS;
                     }
                 } catch (NameAlreadyExistException e) {
                     e.printStackTrace();
                     noticeMessage = NoticeMessage.ROOM_NAME_ALREADY_EXIST;
+                } catch (NotFindDomainException e) {
+                    noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
+                    e.printStackTrace();
                 }
             } else {
                 noticeMessage = NoticeMessage.ROOM_NEED_AT_LEAST_OWNER;
@@ -68,22 +83,30 @@ public class MucRoomController {
         }  else {
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
         }
-        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, room);
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 
-    @RequestMapping(value = "update",method = RequestMethod.POST)
+    @RequestMapping(value = "update/{roomName}",method = RequestMethod.POST)
     public ReturnData update(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                              @RequestParam(value = "serviceName", required = false) String serviceName,
                              @RequestParam(value = "domainId", required = false) Integer domainId,
+                             @PathVariable(value = "roomName") String roomName,
                              ChatRoom chatRoom) {
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
-        if (StringUtils.hasText(chatRoom.getRoomName())) {
+        if (StringUtils.hasText(roomName)) {
             try {
-                if (mucRoomService.update(chatRoom, serviceName,domainId)) {
+                if (null != domainId) {
+                    serviceName = getServiceName(domainId);
+                }
+                chatRoom.setRoomName(roomName);
+                if (mucRoomService.update(chatRoom, serviceName)) {
                     noticeMessage = NoticeMessage.SUCCESS;
                 }
             } catch (NotFindRoomException e) {
                 noticeMessage = NoticeMessage.NOT_FIND_ROOM;
+            } catch (NotFindDomainException e) {
+                e.printStackTrace();
+                noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
             }
         } else {
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
@@ -91,12 +114,12 @@ public class MucRoomController {
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 
-    @RequestMapping("member/add")
+    @RequestMapping("{roomName}/member/add")
     public ReturnData addMember(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                                 @RequestParam(name = "serviceName", required = false) String serviceName,
                                 @RequestParam(name = "domainId", required = false) Integer domainId,
                                 @RequestParam(name = "roles", defaultValue = "members") String roles,
-                                @RequestParam(name = "roomName") String roomName,
+                                @PathVariable(name = "roomName") String roomName,
                                 @RequestParam(name = "userNames") List<String> userNames){
 
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
@@ -106,52 +129,67 @@ public class MucRoomController {
             noticeMessage = NoticeMessage.USERNAME_IS_NULL;
         } else {
             try {
-                if (mucRoomService.addMember(roomName,serviceName,domainId,Role.valueOf(roles),userNames)){
+                if (null != domainId) {
+                    serviceName = getServiceName(domainId);
+                }
+                if (mucRoomService.addMember(roomName,serviceName,Role.valueOf(roles),userNames)){
                     noticeMessage = NoticeMessage.SUCCESS;
                 }
             } catch (CrossDomainException e) {
                 noticeMessage = NoticeMessage.USER_REPEAT_ROOM_MEMBER;
             } catch (NotFindRoomException e) {
                 noticeMessage = NoticeMessage.NOT_FIND_ROOM;
+            } catch (NotFindDomainException e) {
+                e.printStackTrace();
+                noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 
-    @RequestMapping("member/remove")
+    @RequestMapping("{roomName}/member/remove")
     public ReturnData removeMember(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                                 @RequestParam(name = "serviceName", required = false) String serviceName,
                                 @RequestParam(name= "roles", defaultValue = "members") String roles,
-                                @RequestParam(name = "roomName") String roomName,
-                                @RequestParam(name = "name") String name){
-
+                                @PathVariable(name = "roomName") String roomName,
+                                @RequestParam(name = "userNames") List<String> userNames){
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
         if (!StringUtils.hasText(roomName)){
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
-        } else if (!StringUtils.hasText(name)) {
+        } else if (userNames.isEmpty()) {
             noticeMessage = NoticeMessage.USERNAME_IS_NULL;
         } else {
-            if (mucRoomService.removeMember(roomName,serviceName, Role.valueOf(roles),name)){
+            try {
+                mucRoomService.removeMember(roomName, serviceName, Role.valueOf(roles), userNames);
                 noticeMessage = NoticeMessage.SUCCESS;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 
-    @RequestMapping("member/destroy")
+    @RequestMapping(value = "destroy/{roomName}",method = RequestMethod.POST)
     public ReturnData delete(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                              @RequestParam(value = "serviceName", required = false) String serviceName,
-                             @RequestParam(name = "roomName") String roomName){
+                             @RequestParam(value = "domainId", required = false) Integer domainId,
+                             @PathVariable(name = "roomName") String roomName){
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
         if (!StringUtils.hasText(roomName)){
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
         } else {
             try {
+                if (null != domainId) {
+                    serviceName = getServiceName(domainId);
+                }
                 if (mucRoomService.delete(roomName, serviceName)) {
                     noticeMessage = NoticeMessage.SUCCESS;
                 }
             } catch (NotFindRoomException e) {
                 noticeMessage = NoticeMessage.NOT_FIND_ROOM;
+            } catch (NotFindDomainException e) {
+                noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
+                e.printStackTrace();
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
@@ -159,6 +197,7 @@ public class MucRoomController {
     @GetMapping("{roomName}")
     public ReturnData getChatRoom(@RequestParam(name = "lang", defaultValue = "zh") String lang,
                                   @RequestParam(value = "serviceName", required = false) String serviceName,
+                                  @RequestParam(value = "domainId", required = false) Integer domainId,
                                   @PathVariable(name = "roomName") String roomName){
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
         ChatRoom chatRoom = null;
@@ -166,10 +205,14 @@ public class MucRoomController {
             noticeMessage = NoticeMessage.ROOM_NAME_IS_EMPTY;
         } else {
             try {
+                if (null != domainId) {
+                    serviceName = getServiceName(domainId);
+                }
                 chatRoom = mucRoomService.getChatRoom(roomName, serviceName);
                 noticeMessage = NoticeMessage.SUCCESS;
-            } catch (Exception e) {
+            } catch (NotFindDomainException e) {
                 e.printStackTrace();
+                noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, chatRoom);
@@ -194,7 +237,7 @@ public class MucRoomController {
                 noticeMessage = NoticeMessage.SUCCESS;
             } catch (DomainInvalidException e) {
                 noticeMessage = NoticeMessage.DOMAIN_INVALID;
-                logger.error(noticeMessage.getCnMessage());
+                log.error(noticeMessage.getCnMessage());
             } catch (Exception e){
                 e.printStackTrace();
             }
@@ -225,23 +268,28 @@ public class MucRoomController {
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
     }
 
-    @GetMapping("ownquery/{userName}")
+    @GetMapping("{userName}/rooms")
     public ReturnData getOwnerChatRooms(@RequestParam(name = "lang", defaultValue = "zh") String lang,
+                                        @RequestParam(name = "domainId") Integer domainId,
                                         @RequestParam(name = "pageNum", required = false) Integer pageNum,
                                         @RequestParam(name = "pageSize", required = false) Integer pageSize,
                                         @PathVariable(name = "userName") String userName) {
         NoticeMessage noticeMessage = NoticeMessage.FAILED;
-        List<MucRoom> chatRoomsByUserName = null;
+        List<MucRoomPo> chatRoomsByUserName = null;
         Pageable pageable = null;
         if (!StringUtils.hasText(userName)) {
             noticeMessage = NoticeMessage.USERNAME_IS_NULL;
         } else {
+
             if (pageNum != null && pageNum > 0 && pageSize != null && pageSize > 0) {
                 pageable = PageRequest.of(pageNum, pageSize);
             }
             try {
-                chatRoomsByUserName = mucRoomService.findChatRoomsByUserName(userName, pageable);
+                chatRoomsByUserName = mucRoomService.findChatRoomsByUserName(userName,domainId,pageable);
                 noticeMessage = NoticeMessage.SUCCESS;
+            } catch (NotFindUserException e) {
+                noticeMessage = NoticeMessage.USER_NOT_EXIST;
+                e.printStackTrace();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -271,5 +319,32 @@ public class MucRoomController {
             }
         }
         return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, update);
+    }
+
+    @RequestMapping("{roomName}/chatHistory")
+    public ReturnData getMessageHistory(@RequestParam(name = "lang", defaultValue = "zh")String lang,
+                                     @RequestParam(name = "serviceName", required = false) String serviceName,
+                                     @RequestParam(name = "domainId", required = false) Integer domainId,
+                                     @PathVariable(name = "roomName") String roomName){
+        NoticeMessage noticeMessage = NoticeMessage.POST_PARAMS_ERROR;
+        if (null != domainId) {
+            try {
+                serviceName = getServiceName(domainId);
+            } catch (NotFindDomainException e) {
+                e.printStackTrace();
+                noticeMessage = NoticeMessage.DOMAIN_NOT_EXIST;
+            }
+            //TODO
+            //mucRoomService.getMessageHistory(roomName,serviceName);
+        }
+        return NoticeFactory.createNoticeWithFlag(noticeMessage, lang, null);
+    }
+    private String getServiceName(Integer domainId) throws NotFindDomainException {
+        if (null == domainId) return null;
+        Domain domain = domainService.findById(domainId);
+        if (null == domain) {
+            throw new NotFindDomainException();
+        }
+        return mucServiceService.findById(domain.getName()).getSubdomain();
     }
 }

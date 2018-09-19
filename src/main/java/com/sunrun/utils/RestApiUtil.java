@@ -4,7 +4,11 @@ package com.sunrun.utils;
 import com.sunrun.common.config.RestApiConfig;
 import com.sunrun.entity.Property;
 import com.sunrun.exception.DomainInvalidException;
+import com.sunrun.po.GroupData;
 import com.sunrun.utils.helper.*;
+import com.sunrun.entity.Group;
+import com.sunrun.vo.GroupName;
+import com.sunrun.vo.GroupNameVo;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -220,5 +224,88 @@ public class RestApiUtil {
     public boolean deleteSystemProperty(String propertyName) {
         HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders());
         return restTemplate.exchange(getUrl("properties")+"/{0}", HttpMethod.DELETE, requestEntity,PropertyEntity.class,propertyName).getStatusCode() == HttpStatus.OK;
+    }
+
+    public GroupData getGroup(String groupName) {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        try {
+            ResponseEntity<GroupData> group = restTemplate.exchange(getUserUrlWithParams("groups", groupName), HttpMethod.GET, requestEntity, GroupData.class);
+            return group.getBody();
+        } catch (RestClientException e) {
+            if (e.getMessage().contains("404 Not Found")){
+                return null;
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public boolean createGroup(Group group) {
+        HttpEntity<Group> requestEntity = new HttpEntity<>(group, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        ResponseEntity<String> result ;
+        try {
+            result = restTemplate.postForEntity(getUrl("groups"), requestEntity, String.class);
+        } catch (RestClientException e) {
+            throw new RuntimeException(e);
+        }
+        return  result.getStatusCode() == HttpStatus.CREATED;
+    }
+
+    public boolean addUserToGroup(String userName, String groupName) {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_XML));
+        ResponseEntity<String> result ;
+        try {
+            result = restTemplate.postForEntity(getUserUrlWithParams("users",userName,"groups",groupName), requestEntity, String.class);
+        } catch (RestClientException e) {
+            throw new RuntimeException(e);
+        }
+        return  result.getStatusCode() == HttpStatus.CREATED;
+    }
+
+    public boolean deleteGroup(String groupName) {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        return restTemplate.exchange(getUrl("groups")+"/{0}", HttpMethod.DELETE, requestEntity,String.class, groupName).getStatusCode() == HttpStatus.OK;
+    }
+
+    public List<String> getUserGroups(String userName) {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null,getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        try {
+            ResponseEntity<GroupNameVo> exchange = restTemplate.exchange(getUserUrlWithParams("users", userName, "groups"), HttpMethod.GET, requestEntity, GroupNameVo.class);
+            return exchange.getBody().getGroupname();
+        } catch (RestClientException e) {
+           throw new RuntimeException(e);
+        }
+    }
+    public boolean removeUserFromGroup(String userName, List<String> groupNames) {
+        ResponseEntity<?> result;
+        if (groupNames.size() == 1) {
+            HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+            result = restTemplate.exchange(getUserUrlWithParams("users", userName, "groups", groupNames.get(0)), HttpMethod.DELETE, requestEntity, String.class);
+        } else {
+            GroupNameVo vo = new GroupNameVo();
+            vo.setGroupname(groupNames);
+            HttpEntity<GroupNameVo> requestEntity = new HttpEntity<>(vo, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+            result = restTemplate.exchange(getUserUrlWithParams("users", userName, "groups"), HttpMethod.DELETE, requestEntity, String.class);
+        }
+        return HttpStatus.OK == result.getStatusCode();
+    }
+
+    public boolean updateGroup(Group group) {
+        HttpEntity<Group> requestEntity = new HttpEntity<>(group, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        return restTemplate.exchange(getUrl("groups")+"/{0}", HttpMethod.PUT, requestEntity,String.class, group.getName()).getStatusCode() == HttpStatus.OK;
+    }
+
+    public List<GroupName> getAllGroup() {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(null, getHttpHeaders(MediaType.APPLICATION_JSON_UTF8));
+        try {
+            ResponseEntity<GroupNameVo> list = restTemplate.exchange(getUserUrlWithParams("groups"), HttpMethod.GET, requestEntity, GroupNameVo.class);
+            return list.getBody().getGroups();
+        } catch (RestClientException e) {
+            if (e.getMessage().contains("404 Not Found")){
+                return null;
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

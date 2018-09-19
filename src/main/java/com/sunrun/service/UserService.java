@@ -11,7 +11,7 @@ import javax.servlet.http.HttpSession;
 import java.util.List;
 
 public interface UserService {
-    User loginByUser(User user, String serviceTicket) throws NotFindUserException, OpenfireLoginFailureException;
+    User loginByUser(HttpSession session, String serviceTicket) throws NotFindUserException,IamConnectionException;
 
     User save(User user);
 
@@ -25,15 +25,17 @@ public interface UserService {
 
     UserData createUser(UserData userData) throws NameAlreadyExistException;
 
-    boolean updateUser(UserData userData) throws NotFindUserException;
-
     boolean delete(String userName)throws NotFindUserException;
 
-    User loginByUser(User user, HttpSession session) throws NotFindUserException;
+    User loginByUser(User user, HttpSession session) throws NotFindUserException, NoAdminAccessException;
 
     Page<User> getUserListByDomainId(Integer domainId, Long orgId, String search, Pageable pageable);
 
     Page<User> getUserListByOrgId(Long orgId, Pageable pageable);
 
     List<User> getUserListByDomainId(Integer domainId, String search);
+
+    User getUser(String userName, String domainName) throws NotFindDomainException, NotFindUserException;
+
+    User updateUser(User user, String domainName) throws NotFindUserException, NotFindDomainException;
 }

@@ -1,8 +1,11 @@
 package com.sunrun.security;
 
-import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
 
+
+import javax.servlet.http.HttpSession;
+import java.util.Map;
+
 public interface Validate {
-    boolean accessLogin(User user, String serviceTicket) throws IamConnectionException;
+    Map<String,Object> accessLogin(HttpSession session,String serviceTicket) throws IamConnectionException;
 }

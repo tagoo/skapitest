@@ -17,14 +17,18 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<User,Long>,JpaSpecificationExecutor<User>{
 
     @Cacheable
-    User findUserByUserNameAndUserPassword(String username, String userPassword);
+    User findUserByUserNameAndUserPasswordAndRole(String username, String userPassword, User.Role role);
 
     @Query(value = "SELECT * FROM tbuser WHERE orgId=?1",nativeQuery = true)
     List<User> findByOrgId(Long orgId);
 
     int deleteByDomainId(Integer domainId);
+
     @Query(value = "SELECT userName,userRealName FROM tbuser WHERE domainId=?1 order by userName asc")
     List<User> findByDomainId(Integer domainId);
+
+    @Query(value = "SELECT userName FROM tbuser WHERE domainId=?1",countQuery = "SELECT count(userName) FROM tbuser WHERE domainId=?1")
+    Page<String> findNameByDomainId(Integer domainId,Pageable pageable);
 
     @Query(value = "SELECT COUNT(1) FROM tbuser where domainId = :domainId",nativeQuery = true)
     int selectCountByDomainId(@Param("domainId") Integer domainId);
@@ -44,4 +48,7 @@ public interface UserRepository extends JpaRepository<User,Long>,JpaSpecificatio
             "SELECT count(*) FROM tbuser u JOIN tborg r ON u.orgId = r.orgId WHERE u.domainId = ?1 AND (u.userName LIKE %?2% OR u.userRealName like %?2%)",nativeQuery = true)
     Page<UserPo> findByDomainIdAndUserNameOrUserRealNameLike(int domainId, String search, Pageable pageable);
 
+    User findBySourceIdAndDomainId(Long sourceId, Integer domainId);
+
+    User findByDomainIdAndUserName(Integer domainId, String userName);
 }

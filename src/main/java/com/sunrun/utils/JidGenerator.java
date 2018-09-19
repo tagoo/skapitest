@@ -2,8 +2,8 @@ package com.sunrun.utils;
 
 public class JidGenerator {
     private static JidFactory jidFactory;
-    public static String generate(String prefix, String content) {
-        return build().createJid(prefix,content);
+    public static String generate(String content, String suffix) {
+        return build().createJid(content,suffix);
     }
     public static JidFactory build(){
         if (jidFactory == null) {
@@ -12,8 +12,8 @@ public class JidGenerator {
         return jidFactory;
     }
     private static class JidFactory{
-       public String createJid(String prefix,String content){
-           return  prefix + "@" + content;
+       public String createJid(String content,String suffix){
+           return  content + "@" + suffix;
        }
     }
 }

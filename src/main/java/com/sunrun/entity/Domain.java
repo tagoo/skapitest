@@ -11,6 +11,7 @@ import java.util.Date;
 
 @Entity(name="tbdomain")
 public class Domain implements Serializable{
+
     private static final long serialVersionUID = -4597698791566931790L;
     @Id
     private Integer id;

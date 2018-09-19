@@ -1,7 +1,10 @@
 package com.sunrun.service.impl;
 
+import com.sunrun.common.Constant;
+import com.sunrun.common.OpenfireSystemProperties;
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.common.config.OfConfig;
+import com.sunrun.dao.DomainRepository;
 import com.sunrun.dao.MucRoomMemberRepository;
 import com.sunrun.dao.RosterRepository;
 import com.sunrun.entity.*;
@@ -10,12 +13,15 @@ import com.sunrun.dao.UserRepository;
 import com.sunrun.security.Operate;
 import com.sunrun.service.MucRoomService;
 import com.sunrun.service.UserService;
+import com.sunrun.support.iam.SystemPropertyInfo;
+import com.sunrun.utils.IamUtil;
+import com.sunrun.utils.JidGenerator;
+import com.sunrun.utils.ObjectUtil;
 import com.sunrun.utils.RestApiUtil;
-import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.utils.helper.UserData;
+import com.sunrun.vo.IamValidateRespData;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -33,13 +39,14 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.*;
 import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
 @Service
+@Slf4j
 public class UserServiceImpl implements UserService {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -60,50 +67,48 @@ public class UserServiceImpl implements UserService {
     private RestApiUtil restApiUtil;
     @Autowired
     private RedisTemplate redisTemplate;
+    @Autowired
+    private DomainRepository domainRepository;
     @Override
-    @Cacheable(value ="user",key = "#user.userName")
     @Transactional
-    public User loginByUser(User user, String serviceTicket) throws NotFindUserException, OpenfireLoginFailureException {
-        User u = userRepository.findUserByUserNameAndUserPassword(user.getUserName(), user.getUserPassword());
-        if (null == u) {
+    public User loginByUser(HttpSession session, String serviceTicket) throws NotFindUserException, IamConnectionException {
+        Object o = operate.accessLogin(session,serviceTicket).get(Constant.IAM_VALIDATE_RESPONSE_DATA);
+        User user = null;
+        if (o != null && o instanceof IamValidateRespData) {
+            IamValidateRespData respData = (IamValidateRespData)o;
+            if (respData.getUser_id() != null) {
+                user = userRepository.findBySourceIdAndDomainId(respData.getUser_id(), respData.getDomain_id());
+            }
+        }
+        if (user == null) {
             throw new NotFindUserException();
         }
-        try {
-            if (operate.accessLogin(u,serviceTicket)) {
-                logger.info("Login authentication successful from Iam,username:" + user.getUserName());
-                return u;
-            }
-            //openfire 登录
-            XmppConnectionUtil instance = XmppConnectionUtil.getInstance();
-            if (instance.login(user.getUserName(),user.getUserPassword())) {
-                List<MucRoom> chatRooms = mucRoomService.findChatRoomsByUserName(user.getUserName() + "@" + instance.getConnection().getServiceName().toString(), null);
-                boolean flag = false;
-                for (MucRoom room: chatRooms) {
-                    flag = instance.joinChatRoom(user.getUserName(), room.getName(), null);
-                    if (!flag) {
-                        instance.disconnectAccout();
-                        break;
-                    }
-                }
-            } else {
-                throw new OpenfireLoginFailureException();
-            }
-
-            return null;
-        } catch (IamConnectionException e) {
-           throw new RuntimeException(e);
-        }
+        session.setAttribute(Constant.CURRENT_USER,user);
+        user.setUserPassword(null);
+        log.info("The user(userName:{},sourceId:{}) login success",user.getUserName(),user.getSourceId());
+        return user;
     }
 
     @Override
-    public User loginByUser(User user, HttpSession session) throws NotFindUserException {
-        User u = userRepository.findUserByUserNameAndUserPassword(user.getUserName(), DigestUtils.sha1Hex(user.getUserPassword().getBytes()));
+    public User loginByUser(User user, HttpSession session) throws NotFindUserException, NoAdminAccessException {
+        User u = userRepository.findUserByUserNameAndUserPasswordAndRole(user.getUserName(), DigestUtils.sha1Hex(user.getUserPassword().getBytes()), User.Role.admin);
         if (null == u) {
             throw new NotFindUserException();
         }
-        session.setAttribute("currentUser",u);
-        u.setUserPassword(null);
-        return u;
+        Property property = SystemPropertyInfo.getProperties().get(SystemPropertyInfo.ADMIN_AUTHORIZED_JIDS);
+        if (property != null && StringUtils.hasText(property.getValue())) {
+            String[] split = property.getValue().split(",");
+            List<String> admins = Arrays.asList(split);
+            if (admins.contains(JidGenerator.generate(u.getUserName(),SystemPropertyInfo.getProperties().get(OpenfireSystemProperties.XMPP_DOMAIN).getValue()))){
+                session.setAttribute(Constant.CURRENT_USER,u);
+                u.setUserPassword(null);
+                return u;
+            } else {
+                throw new NoAdminAccessException();
+            }
+        } else {
+            throw new NoAdminAccessException();
+        }
         //todo 是否需要去openfire登录
        /* XmppConnection xmppConnection = new XmppConnection(ofConfig);
         boolean login = xmppConnection.login(user.getUserName(), user.getUserPassword());
@@ -142,9 +147,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value ="user",key = "#userName")
     public UserData getUser(String userName) {
         return restApiUtil.getUser(userName);
+    }
+
+    @Override
+    @Cacheable(value ="user",key = "#domainName+#userName")
+    public User getUser(String userName, String domainName) throws NotFindDomainException, NotFindUserException {
+        Domain domain = domainRepository.findByName(domainName);
+        if (null == domain) {
+            throw new NotFindDomainException();
+        }
+        User user = userRepository.findByDomainIdAndUserName(domain.getId(),userName);
+        if (null == user) {
+            throw new NotFindUserException();
+        }
+        user.setUserPassword(null);
+        return user;
     }
 
     @Override
@@ -160,12 +179,26 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean updateUser(UserData userData) throws NotFindUserException {
-        UserData user = restApiUtil.getUser(userData.getUsername());
-        if (user == null) {
+    @Transactional(rollbackFor = Exception.class)
+    public User updateUser(User user, String domainName) throws NotFindUserException, NotFindDomainException {
+        Domain domain = domainRepository.findByName(domainName);
+        if (null == domain) {
+            throw new NotFindDomainException();
+        }
+        User local = userRepository.findByDomainIdAndUserName(domain.getId(), user.getUserName());
+        if (null == local) {
             throw new NotFindUserException();
         }
-        return restApiUtil.updateUser(userData);
+        //update the user in the database
+        ObjectUtil.packData(user,local);
+        User save = userRepository.save(local);
+        //update the user in IAM system
+        user.setSourceId(local.getSourceId());
+        boolean result = IamUtil.getInstance().updateUser(user);
+        if (result) {
+            log.info("Update successfully the user ({}) in IAM system", user.getUserName());
+        }
+        return save;
     }
 
     @Override

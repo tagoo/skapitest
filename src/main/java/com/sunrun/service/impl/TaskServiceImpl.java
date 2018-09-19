@@ -9,6 +9,7 @@ import com.sunrun.listener.TaskMessageEvent;
 import com.sunrun.service.TaskService;
 import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.vo.TaskInfo;
+import lombok.extern.slf4j.Slf4j;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.XMPPException;
@@ -35,6 +36,7 @@ import java.util.Optional;
 
 
 @Service
+@Slf4j
 @Transactional(rollbackFor = Exception.class,propagation = Propagation.REQUIRES_NEW)
 public class TaskServiceImpl implements TaskService{
     @Autowired
@@ -47,7 +49,6 @@ public class TaskServiceImpl implements TaskService{
     private MucRoomMemberRepository mucRoomMemberRepository;
     @Autowired
     private MucServiceRepository mucServiceRepository;
-    private Logger logger = LoggerFactory.getLogger(TaskServiceImpl.class);
     @Override
     public Task save(TaskInfo taskinfo) {
         List<TaskFile> fileData = taskinfo.getFileData();
@@ -63,7 +64,7 @@ public class TaskServiceImpl implements TaskService{
                     muc.sendMessage(String.format("创建任务(%s)，通知内容：%s", event.getTaskName(), event.getContent()));
                 } catch (Exception e) {
                     e.printStackTrace();
-                    logger.error(String.format("Failed to send notification that %s save the task(%s)",event.getUserName(), event.getTaskName()));
+                    log.error(String.format("Failed to send notification that %s save the task(%s)",event.getUserName(), event.getTaskName()));
                 } finally {
                     XmppConnectionUtil.getInstance().disconnectAccout();
                 }
@@ -93,7 +94,7 @@ public class TaskServiceImpl implements TaskService{
                 muc.sendMessage(String.format("删除任务(%s)", event.getTaskName()));
             } catch (Exception e) {
                 e.printStackTrace();
-                logger.error(String.format("Failed to send notification that %s delete the task(%s)",event.getUserName(), event.getTaskName()));
+                log.error(String.format("Failed to send notification that %s delete the task(%s)",event.getUserName(), event.getTaskName()));
             } finally {
                 XmppConnectionUtil.getInstance().disconnectAccout();
             }
@@ -155,7 +156,7 @@ public class TaskServiceImpl implements TaskService{
                 muc.sendMessage(String.format("更新任务(%s)", event.getTaskName()));
             } catch (Exception e) {
                 e.printStackTrace();
-                logger.error(String.format("Failed to send notification that %s update the task(%s)",event.getUserName(),event.getTaskName()));
+                log.error(String.format("Failed to send notification that %s update the task(%s)",event.getUserName(),event.getTaskName()));
             } finally {
                 XmppConnectionUtil.getInstance().disconnectAccout();
             }
@@ -183,7 +184,7 @@ public class TaskServiceImpl implements TaskService{
                 muc.sendMessage(String.format("在任务(%s)中添加事件(%s)", event.getTaskName(), event.getContent()));
             } catch (Exception e) {
                 e.printStackTrace();
-                logger.error(String.format("Failed to send notification that %s add the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
+                log.error(String.format("Failed to send notification that %s add the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
             } finally {
                 XmppConnectionUtil.getInstance().disconnectAccout();
             }
@@ -223,7 +224,7 @@ public class TaskServiceImpl implements TaskService{
                     muc.sendMessage(String.format("在任务(%s)中删除事件(%s)", event.getTaskName(), event.getContent()));
                 } catch (Exception e) {
                     e.printStackTrace();
-                    logger.error(String.format("Failed to send notification that %s delete the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
+                    log.error(String.format("Failed to send notification that %s delete the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
                 } finally {
                     XmppConnectionUtil.getInstance().disconnectAccout();
                 }
@@ -273,7 +274,7 @@ public class TaskServiceImpl implements TaskService{
                     muc.sendMessage(String.format("在任务(%s)中更新事件(%s)", event.getTaskName(), event.getContent()));
                 } catch (Exception e) {
                     e.printStackTrace();
-                    logger.error(String.format("Failed to send notification that %s update the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
+                    log.error(String.format("Failed to send notification that %s update the event(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
                 } finally {
                     XmppConnectionUtil.getInstance().disconnectAccout();
                 }
@@ -304,7 +305,7 @@ public class TaskServiceImpl implements TaskService{
                 muc.sendMessage(String.format("在任务(%s)中添加文件(%s)", event.getTaskName(), event.getContent()));
             } catch (Exception e) {
                 e.printStackTrace();
-                logger.error(String.format("Failed to send notification that %s add the files(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
+                log.error(String.format("Failed to send notification that %s add the files(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
             } finally {
                 XmppConnectionUtil.getInstance().disconnectAccout();
             }
@@ -344,7 +345,7 @@ public class TaskServiceImpl implements TaskService{
                 muc.sendMessage(String.format("在任务(%s)中删除文件(%s)", event.getTaskName(), event.getContent()));
             } catch (Exception e) {
                 e.printStackTrace();
-                logger.error(String.format("Failed to send notification that %s delete the files(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
+                log.error(String.format("Failed to send notification that %s delete the files(%s) to the task(%s)",event.getUserName(), event.getContent(), event.getTaskName()));
             } finally {
                 XmppConnectionUtil.getInstance().disconnectAccout();
             }

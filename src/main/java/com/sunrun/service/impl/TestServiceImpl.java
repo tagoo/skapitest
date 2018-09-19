@@ -6,6 +6,7 @@ import com.sunrun.dao.UserRepository;
 import com.sunrun.entity.User;
 import com.sunrun.service.TestService;
 import com.sunrun.utils.XmppConnectionUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.SmackException;
@@ -38,10 +39,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 @Service
+@Slf4j
 public class TestServiceImpl implements TestService {
     @Autowired
     private UserRepository userRepository;
-    private static final Logger logger = LoggerFactory.getLogger(TestServiceImpl.class);
 
     @Override
     public void login() {
@@ -74,7 +75,7 @@ public class TestServiceImpl implements TestService {
                         });
                         MultiUserChat muc = MultiUserChatManager.getInstanceFor(connection).getMultiUserChat(JidCreate.entityBareFrom("test@sunrun.sunrun"));
                         muc.addMessageListener((message) -> {
-                            logger.info(u.getUserName() + "在" + LocalDateTime.now().toString() + "收到消息：" + message.getBody());
+                            log.info(u.getUserName() + "在" + LocalDateTime.now().toString() + "收到消息：" + message.getBody());
                         });
                         muc.join(Resourcepart.from(u.getUserName()));
                     }catch (Exception e) {

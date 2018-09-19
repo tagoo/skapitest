@@ -8,13 +8,13 @@ public enum NoticeMessage {
 
         POST_PARAMS_ERROR(420,"请求的参数异常","Bad request" ),
 
-        UNKNOWN_EXCEPTION(500, "未知异常，清联系系统管理员", "Unknown error, please contact administrator"),
+        UNKNOWN_EXCEPTION(500, "未知异常，请联系系统管理员", "Unknown error, please contact administrator"),
 
         ENTER_USERNAME_AND_PASSWORD(1000, "请填写用户名与密码", "Please input user name and password"),
 
         EMAIL_OR_PHONE_REPEAT(1001, "邮箱/手机号重复", "Duplicated phone number"),
 
-        SYSTEM_EXCEPTION(1002, "系统异常，清联系系统管理员", "Unknown error, please contact administrator"),
+        SYSTEM_EXCEPTION(1002, "系统异常，请联系系统管理员", "Unknown error, please contact administrator"),
 
         USERNAME_OR_PASSWORD_IS_NULL(1003, "用户名或密码为空", "User name or password is empty"),
 
@@ -110,7 +110,15 @@ public enum NoticeMessage {
 
         ROOM_NEED_AT_LEAST_OWNER(1041, "创建群至少需要1个拥有者", "The room must have at least one owner."),
 
-        SYNCHRONIZATION_RUNNING(1042,"用户数据正在同步中，请稍后再试！" ,"User data is being synchronized,Please try again later!" );
+        SYNCHRONIZATION_RUNNING(1042,"用户数据正在同步中，请稍后再试！" ,"User data is being synchronized,Please try again later!" ),
+
+        NO_ADMIN_ACCESS(1043,"该用户不是管理员" ,"The user is not administrators" ),
+
+        DOMAIN_NOT_EXIST(1044,"该域不存在" ,"The domain does not exist." ),
+
+        GROUP_NAME_ALREADY_EXIST(1045,"该组名已经存在" ,"The group name already exists." ),
+
+        NOT_FIND_GROUP(1046,"该组不存在" ,"The group does not exist." );
 
         private int code;
         private String cnMessage;

@@ -3,6 +3,10 @@
  */
 package com.sunrun.vo;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.List;
 
 
@@ -15,20 +19,9 @@ import java.util.List;
   * @date  2017年10月18日 上午9:35:59
   * @version 3.0
   */
+@NoArgsConstructor
+@Getter
+@Setter
 public class DomainResult {
-	
 	private List<DomainVo> domains ;
-
-	public DomainResult() {
-		super();
-	}
-
-	public List<DomainVo> getDomains() {
-		return domains;
-	}
-
-	public void setDomains(List<DomainVo> domains) {
-		this.domains = domains;
-	}
-	
 }

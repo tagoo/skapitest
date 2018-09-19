@@ -2,6 +2,7 @@ package com.sunrun.dao;
 
 import com.sunrun.entity.Org;
 import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -17,5 +18,5 @@ public interface OrgRepository extends JpaRepository<Org,Long> {
 
     List<Org> findByDomainId(Integer id);
 
-    List<Org> findByDomainIdAndParentId(Integer domainId, Long parentId);
+    List<Org> findByDomainIdAndParentId(Integer domainId, Long parentId, Sort sort);
 }

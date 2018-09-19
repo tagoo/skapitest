@@ -8,7 +8,9 @@ import com.sunrun.entity.User;
 import com.sunrun.exception.IamConnectionException;
 import com.sunrun.vo.*;
 
-import org.springframework.http.ResponseEntity;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.*;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class IamUtil {
     private IamConfig iamConfig;
     private RestTemplate restTemplate;
@@ -43,6 +46,8 @@ public class IamUtil {
     private final String REFRESH_TOKEN ="refresh_token";
     private final String DOMAIN_ID ="domain_id";
     private final String ORG_ID ="org_id";
+
+
 
     private static class InstanceFactory{
         private static IamUtil instance = new IamUtil();
@@ -119,6 +124,49 @@ public class IamUtil {
             throw new IamConnectionException(e);
         }
     }
+    public boolean updateUser(User user) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("user_id", user.getSourceId().toString());
+        params.add(ACCESS_TOKEN, accessToken);
+        if (user.getUserRealName() != null) {
+            params.add("real_name",user.getUserRealName());
+        }
+        if (user.getUserMobile() != null) {
+            params.add("mobile",user.getUserMobile());
+        }
+        if (user.getUserPhone() != null) {
+            params.add("telephone",user.getUserPhone());
+        }
+        if (user.getUserEmail() != null) {
+            params.add("email",user.getUserEmail());
+        }
+        if (user.getUserAddress() != null) {
+            params.add("address",user.getUserAddress());
+        }
+        if (user.getUserBirthday() != null) {
+            params.add("birthday",user.getUserBirthday().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        }
+        if (user.getUserSex() != null) {
+            params.add("sex",user.getUserSex().ordinal() +"");
+        }
+        if (user.getUserDescription() != null) {
+            params.add("remark",user.getUserDescription());
+        }
+        if (user.getRank() != null) {
+            params.add("rank",user.getRank());
+        }
+        if (user.getUserMobile2() != null) {
+            params.add("mobile2",user.getUserMobile2());
+        }
+        if (user.getQq() != null) {
+            params.add("qq",user.getQq());
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params,headers);
+        ResponseEntity<String> result = restTemplate.postForEntity(iamServer + iamConfig.getUrls().get("updateUser"), request, String.class);
+        return result.getStatusCode() == HttpStatus.OK;
+    }
 
     public String refreshAccessToken(String refreshToken) throws IamConnectionException{
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
@@ -148,7 +196,20 @@ public class IamUtil {
     }
 
     public DomainVo getDomainDetails(Integer domainId) throws IamConnectionException{
-       return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domain") + "?access_token={0}&domain_id={1}", DomainVo.class, getAccessToken(), domainId);
+        int count = 1;
+        DomainVo domain = null;
+        while (count <= 3 && domain == null) {
+            try {
+                domain = restTemplate.getForObject(iamServer + iamConfig.getUrls().get("domain") + "?access_token={0}&domain_id={1}", DomainVo.class, getAccessToken(), domainId);
+            } catch (Exception e) {
+                log.warn("The {} times to get the domain(id:{}) details failed.",count,domainId);
+            }
+            count ++;
+        }
+        if (domain == null) {
+            throw new IamConnectionException();
+        }
+        return domain;
     }
     public void addDetails(Domain domain) throws IamConnectionException {
         DomainVo vo = getDomainDetails(domain.getId());
@@ -161,15 +222,39 @@ public class IamUtil {
     }
 
     public UserVo getUserDetails(Long userId) throws IamConnectionException{
-        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("user")+"?access_token={0}&user_id={1}",UserVo.class, getAccessToken(),userId);
+        int count = 1;
+        UserVo vo = null;
+        while (count <= 3 && vo == null) {
+            try {
+                vo = restTemplate.getForObject(iamServer + iamConfig.getUrls().get("user") + "?access_token={0}&user_id={1}", UserVo.class, getAccessToken(), userId);
+            } catch (Exception e) {
+                log.warn("The {} times to get the user(id:{}) details failed.",count,userId);
+            }
+            count ++;
+        }
+        if (vo == null) {
+            throw new IamConnectionException();
+        }
+        return vo;
     }
 
     public List<UserVo> getUserList(Integer domainId) throws IamConnectionException {
         return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&domain_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),domainId).getOrgs();
     }
 
-    public List<UserVo> getUserList(Long orgId) throws IamConnectionException {
-        return restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList")+"?access_token={0}&org_id={1}&type=2&depth=1", UserResultVo.class,getAccessToken(),orgId ).getOrgs();
+    public List<UserVo> getUserList(Long orgId) {
+        int count = 1;
+        List<UserVo> list = null;
+        while (count <= 3 && list == null) {
+            try {
+                list = restTemplate.getForObject(iamServer + iamConfig.getUrls().get("orgList") + "?access_token={0}&org_id={1}&type=2&depth=1", UserResultVo.class, getAccessToken(), orgId).getOrgs();
+                break;
+            }catch (Exception e) {
+                log.warn("The {} times to get the user data in the org(id:{}) failed.",count,orgId);
+            }
+            count ++;
+        }
+        return list;
     }
 
     public List<OrgVo> getOrganizationaList(Integer domainId) throws IamConnectionException {
@@ -178,7 +263,18 @@ public class IamUtil {
         params.add(DOMAIN_ID, domainId.toString());
         params.add("type", "1");
         params.add("org_infos", "*");
-        return restTemplate.postForObject(iamServer + iamConfig.getUrls().get("orgList"), params, OrganizationVo.class).getOrgs();
+        int count = 1;
+        List<OrgVo> list = null;
+        while (count <= 3 && list == null) {
+            try {
+                list = restTemplate.postForObject(iamServer + iamConfig.getUrls().get("orgList"), params, OrganizationVo.class).getOrgs();
+                break;
+            }catch (Exception e) {
+                log.warn("The {} times to get the org data in the domain(id:{}) failed.",count,domainId);
+            }
+            count ++;
+        }
+        return list;
     }
 
 

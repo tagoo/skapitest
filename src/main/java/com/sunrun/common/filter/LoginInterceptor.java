@@ -1,6 +1,7 @@
 package com.sunrun.common.filter;
 
 import com.google.gson.Gson;
+import com.sunrun.common.Constant;
 import com.sunrun.common.notice.NoticeFactory;
 import com.sunrun.common.notice.NoticeMessage;
 import com.sunrun.common.notice.ReturnCode;
@@ -14,7 +15,7 @@ import java.io.PrintWriter;
 
 
 public class LoginInterceptor implements HandlerInterceptor {
-    private static final String CURRENT_USER = "currentUser";
+    private static final String CURRENT_USER = Constant.CURRENT_USER;
     private static final String LANG = "lang";
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {

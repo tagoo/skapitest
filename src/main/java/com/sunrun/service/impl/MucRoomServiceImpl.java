@@ -1,22 +1,38 @@
 package com.sunrun.service.impl;
 
 import com.github.pagehelper.Page;
+import com.sunrun.common.OpenfireSystemProperties;
 import com.sunrun.dao.*;
 import com.sunrun.entity.Domain;
-import com.sunrun.entity.MucRoom;
 import com.sunrun.entity.MucRoomMember;
+import com.sunrun.entity.User;
 import com.sunrun.entity.model.MucRoomMemberKey;
 import com.sunrun.exception.*;
+import com.sunrun.po.MucRoomPo;
 import com.sunrun.service.MucRoomService;
+import com.sunrun.support.iam.SystemPropertyInfo;
+import com.sunrun.utils.Base32Util;
 import com.sunrun.utils.RestApiUtil;
 import com.sunrun.utils.helper.ArraysUtil;
 import com.sunrun.utils.helper.ChatRoom;
 import com.sunrun.entity.Property;
 import com.sunrun.utils.helper.Role;
 import com.sunrun.utils.helper.UserData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+
+import org.hibernate.Session;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.query.internal.NativeQueryImpl;
+import org.hibernate.transform.Transformers;
+import org.hibernate.type.StandardBasicTypes;
+import org.jivesoftware.smack.util.MD5;
+
+import org.jxmpp.jid.Jid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,84 +44,65 @@ import org.springframework.util.StringUtils;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 
 @Service
+@CacheConfig(cacheNames = "room")
+@Slf4j
 public class MucRoomServiceImpl implements MucRoomService {
-    @Autowired
-    private MucRoomRepository mucRoomRepository;
+
     @Autowired
     private MucRoomMemberRepository mucRoomMemberRepository;
     @Autowired
     private DomainRepository domainRepository;
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private MucServiceRepository mucServiceRepository;
     @Resource
     private RestApiUtil restApiUtil;
     @Autowired
     @PersistenceContext
     private EntityManager entityManager;
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-
     @Override
-    public ChatRoom save(ChatRoom chatRoom, String serviceName, Integer domainId) throws NameAlreadyExistException {
-        serviceName = domainId != null ? getServiceName(domainId): serviceName;
+    @CachePut(key = "#chatRoom.roomName + #serviceName")
+    public ChatRoom save(ChatRoom chatRoom, String serviceName) throws NameAlreadyExistException {
         ChatRoom room = restApiUtil.getChatRoom(chatRoom.getRoomName(), serviceName);
         if (room != null) {
             throw new NameAlreadyExistException();
         }
         ResponseEntity<String> responseEntity = restApiUtil.createChatRoom(chatRoom, serviceName);
         if (responseEntity.getStatusCode() == HttpStatus.CREATED) {
-            logger.info("Create chatRoom(name:{})success",chatRoom.getRoomName());
+            log.info("Create chatRoom(name:{})success",chatRoom.getRoomName());
             return restApiUtil.getChatRoom(chatRoom.getRoomName(), serviceName);
         } else {
             return null;
         }
     }
     @Override
-    public boolean update(ChatRoom chatRoom, String serviceName, Integer domainId) throws NotFindRoomException {
-        serviceName = domainId != null ? getServiceName(domainId): serviceName;
+    @CachePut(key = "#chatRoom.roomName + #serviceName")
+    public boolean update(ChatRoom chatRoom, String serviceName) throws NotFindRoomException {
         ChatRoom room = restApiUtil.getChatRoom(chatRoom.getRoomName(), serviceName);
-        if (room != null) {
-           return  restApiUtil.updateChatRoom(chatRoom,serviceName);
-        } else {
+        if (room == null) {
             throw new NotFindRoomException();
         }
+        return  restApiUtil.updateChatRoom(chatRoom,serviceName);
     }
 
-    private String getServiceName(Integer domainId) {
-        if (null == domainId) return null;
-        Optional<Domain> op = domainRepository.findById(domainId);
-        if (op.isPresent()) {
-            return mucServiceRepository.getOne(op.get().getName()).getSubdomain();
-        }  else {
-            return null;
-        }
-    }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean addMember(String roomName, String serviceName, Integer domainId, Role role, List<String> names) throws NotFindRoomException, CrossDomainException {
+    @CacheEvict(key = "#roomName + #serviceName")
+    public boolean addMember(String roomName, String serviceName, Role role, List<String> names) throws NotFindRoomException, CrossDomainException {
         Domain domain = null;
-        if (domainId != null) {
-            Optional<Domain> op = domainRepository.findById(domainId);
-            if (op.isPresent()) {
-                domain = op.get();
-                serviceName = mucServiceRepository.getOne(domain.getName()).getSubdomain();
-            }
-        } else if(StringUtils.hasText(serviceName)) {
-           domain = domainRepository.findByName(serviceName);
+        if (StringUtils.hasText(serviceName)) {
+            domain = domainRepository.findByName(serviceName);
         }
         if (domain != null) {
-            for (String userName: names) {
-                if (userRepository.selectCountByDomainIdAndUserName(domain.getId(),userName) !=1){
+            for (String userName : names) {
+                if (userRepository.selectCountByDomainIdAndUserName(domain.getId(), userName) != 1) {
                     throw new CrossDomainException();
                 }
             }
@@ -136,11 +133,15 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
-    public boolean removeMember(String roomName, String serviceName, Role role, String name) {
-        return restApiUtil.removeMember(roomName,serviceName,role,name);
+    @CacheEvict(key = "#roomName + #serviceName")
+    public void removeMember(String roomName, String serviceName, Role role, List<String> userName) {
+        if (null != userName && !userName.isEmpty()) {
+            userName.forEach(name -> restApiUtil.removeMember(roomName,serviceName,role,name));
+        }
     }
 
     @Override
+    @CacheEvict(key = "#roomName + #serviceName")
     public boolean delete(String roomName, String serviceName) throws NotFindRoomException {
         ChatRoom chatRoom = restApiUtil.getChatRoom(roomName, serviceName);
         if (chatRoom == null) {
@@ -150,6 +151,7 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
+    @Cacheable(key = "#roomName + #serviceName")
     public ChatRoom getChatRoom(String roomName, String serviceName) {
         return restApiUtil.getChatRoom(roomName, serviceName);
     }
@@ -192,18 +194,53 @@ public class MucRoomServiceImpl implements MucRoomService {
     }
 
     @Override
-    public List<MucRoom> findChatRoomsByUserName(String jid, Pageable pageable) {
-        StringBuilder sql = new StringBuilder("SELECT r.* FROM ofmucroom r INNER JOIN (SELECT roomID as roomID from ofmucmember m WHERE m.jid = :jid UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = :jid) t2 on r.roomID = t2.roomID");
+    public List<MucRoomPo> findChatRoomsByUserName(String jid, Integer domainId, Pageable pageable) throws NotFindUserException {
+        String domainName = SystemPropertyInfo.getProperties().get(OpenfireSystemProperties.XMPP_DOMAIN).getValue();
+        String queryUserName = jid;
+        if (jid.contains("@")) {
+            queryUserName = jid.substring(0,jid.lastIndexOf("@"));
+        }
+        User user = userRepository.findByDomainIdAndUserName(domainId, queryUserName);
+        if (user == null) {
+            throw new NotFindUserException();
+        }
+
+        List<String> userGroups = restApiUtil.getUserGroups(jid);
+        List<MucRoomPo> rooms = null;
+        if (null != userGroups && !userGroups.isEmpty()) {
+            List<String> collect = userGroups.stream().map(g -> Base32Util.encode(g) + "@" + domainName + "/" + MD5.hex(g).toLowerCase()).collect(Collectors.toList());
+            rooms = mucRoomMemberRepository.findRoomByGroupJidIn(collect);
+        }
+        if (!jid.contains("@")) {
+            jid += "@" + domainName;
+        }
+        StringBuilder sql = new StringBuilder("SELECT r.roomID,r.name,r.naturalName,s.subdomain FROM ofmucroom r INNER JOIN (SELECT roomID as roomID from ofmucmember m WHERE m.jid = :jid UNION all SELECT roomID as roomID FROM ofmucaffiliation WHERE jid = :jid) t2 on r.roomID = t2.roomID LEFT JOIN ofmucservice AS s ON s.serviceID = r.serviceID");
         if (pageable != null) {
             sql.append(" limit ");
             sql.append((pageable.getPageNumber()-1) * pageable.getPageSize());
             sql.append("," + pageable.getPageSize());
         }
-        Query query = entityManager.createNativeQuery(sql.toString(),MucRoom.class);
+        Session session = entityManager.unwrap(Session.class);
+        NativeQuery query = session.createNativeQuery(sql.toString());
+        query.addScalar("roomID",StandardBasicTypes.LONG)
+              .addScalar("name", StandardBasicTypes.STRING)
+              .addScalar("naturalName", StandardBasicTypes.STRING)
+              .addScalar("subdomain", StandardBasicTypes.STRING);
+        query.unwrap(NativeQueryImpl.class).setResultTransformer(Transformers.aliasToBean(MucRoomPo.class));
         query.setParameter("jid",jid);
-        List<MucRoom> resultList = query.getResultList();
+        List<MucRoomPo> resultList = query.getResultList();
         entityManager.close();
+        if (rooms != null) {
+            rooms.forEach(r -> {if (!resultList.contains(r)){
+                resultList.add(r);
+            }});
+        }
         return resultList;
+    }
+
+    private boolean isGroup(Jid jid) {
+        return jid.getResourceOrNull() != null &&
+               Base32Util.isBase32(jid.getLocalpartOrNull().asUnescapedString()) && jid.getResourceOrNull().toString().equals(MD5.hex(Base32Util.decode(jid.getLocalpartOrNull().toString())).toLowerCase());
     }
 
     @Override
@@ -216,6 +253,5 @@ public class MucRoomServiceImpl implements MucRoomService {
         }
         return null;
     }
-
 
 }

@@ -60,7 +60,7 @@ public class UserServiceImplTest {
         user.setUserName("test");
         user.setUserPassword("123456");
         try {
-            User u = userService.loginByUser(user,hashMap.get("st"));
+            User u = userService.loginByUser(null,hashMap.get("st"));
             Assert.assertEquals(16390L,u.getId().longValue());
         } catch (Exception e) {
             e.printStackTrace();

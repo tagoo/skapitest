@@ -1,21 +1,19 @@
 package com.sunrun.security;
 
+import com.sunrun.common.Constant;
 import com.sunrun.common.config.IamConfig;
 import com.sunrun.dao.DomainRepository;
 import com.sunrun.dao.MucServiceRepository;
 import com.sunrun.dao.OrgRepository;
 import com.sunrun.dao.UserRepository;
-import com.sunrun.entity.Domain;
-import com.sunrun.entity.MucService;
-import com.sunrun.entity.Org;
-import com.sunrun.entity.User;
+import com.sunrun.entity.*;
 import com.sunrun.exception.*;
+import com.sunrun.service.GroupService;
 import com.sunrun.service.SystemPropertyService;
 import com.sunrun.support.iam.DomainSyncInfo;
 import com.sunrun.support.iam.SystemPropertyInfo;
 import com.sunrun.utils.IDGenerator;
 import com.sunrun.utils.IamUtil;
-import com.sunrun.entity.Property;
 import com.sunrun.utils.XmppConnectionUtil;
 import com.sunrun.vo.IamValidateRespData;
 import com.sunrun.vo.OrgVo;
@@ -28,12 +26,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import javax.annotation.Resource;
 import javax.persistence.*;
+import javax.servlet.http.HttpSession;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -53,25 +54,35 @@ public class IamOperate implements Operate,EnvironmentAware{
     @Autowired
     private UserRepository userRepository;
     @Autowired
+    private GroupService groupService;
+    @Autowired
     private MucServiceRepository mucServiceRepository;
     @Resource
     private SystemPropertyService systemPropertyService;
     @PersistenceContext
     private EntityManager entityManager;
     private final String VALIDATE_URL = "validate";
+    private final String SESSION_NAME = "JSESSIONID";
     @Override
-    public boolean accessLogin(User user, String serviceTicket) throws IamConnectionException {
-        IamValidateRespData body = null;
+    public Map<String,Object> accessLogin(HttpSession session, String serviceTicket) throws IamConnectionException {
+        Map<String,Object> map = new HashMap<>();
         try {
             StringBuffer url = new StringBuffer(IamUtil.getInstance().getIamServer());
             url.append(iamConfig.getUrls().get(VALIDATE_URL));
-            body = restTemplate.getForEntity(url.toString() + "?st={0}&service={1}", IamValidateRespData.class, serviceTicket, iamConfig.getService()).getBody();
-
+            url.append("?st="+ serviceTicket).append("&service="+iamConfig.getService());
+            Object serverIP = session.getAttribute(Constant.SERVER_IP);
+            if (serverIP != null) {
+                url.append("&service_logout=" + serverIP.toString()).append("&session_name="+SESSION_NAME).append("&session_id="+session.getId());
+            }
+            IamValidateRespData body = restTemplate.getForEntity(url.toString(), IamValidateRespData.class).getBody();
+            if (body != null) {
+                map.put(Constant.IAM_VALIDATE_RESPONSE_DATA,body);
+            }
         } catch (RestClientException e) {
             logger.error("Failed to connect to the Iam,server: " + iamConfig.getHost());
             throw new IamConnectionException(e);
         }
-        return body.getUser_id() != null;
+        return map;
     }
 
     @Override
@@ -115,6 +126,7 @@ public class IamOperate implements Operate,EnvironmentAware{
                                     domainRepository.save(domain);
                                     doSaveInDomain(domain);
                                     createMucService(domain);
+                                    createGroup(domain,false);
                                     return true;
                                 } catch (Exception e) {
                                     e.printStackTrace();
@@ -189,6 +201,52 @@ public class IamOperate implements Operate,EnvironmentAware{
         return flag;
     }
 
+    private void createGroup(Domain domain,boolean isRemote) {
+        Group group = new Group();
+        group.setName(domain.getName());
+        try {
+            groupService.save(group, domain.getId());
+        } catch (NameAlreadyExistException e) {
+            logger.error("The group name({}) already exists",domain.getName());
+            throw new RuntimeException(e);
+        }
+        Page<String> page = userRepository.findNameByDomainId(domain.getId(), PageRequest.of(0, 500));
+        if (!page.getContent().isEmpty()){
+            add(page.getContent(),group,isRemote);
+            for (int index = 1; index < page.getTotalPages(); index++) {
+                add(userRepository.findNameByDomainId(domain.getId(), PageRequest.of(index, 500)).getContent(),group,isRemote);
+            }
+        }
+    }
+
+    private void add(List<String> userList,Group group, boolean isRemote) {
+        ExecutorService pool = Executors.newFixedThreadPool(5);
+        if (userList.size() > 30) {
+            userList.forEach(name -> pool.execute(() -> {
+                try {
+                    groupService.addUserToGroup(name, group.getName(),isRemote);
+                } catch (NotFindGroupException e) {
+                    e.printStackTrace();
+                    logger.error("Failed to add user({}) to the group({})",name,group.getName());
+                }
+            }));
+            try {
+                pool.awaitTermination(2,TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            pool.shutdown();
+        } else {
+            userList.forEach(u -> {
+                try {
+                    groupService.addUserToGroup(u, group.getName(),isRemote);
+                } catch (NotFindGroupException e) {
+                    e.printStackTrace();
+                    logger.error("Failed to add user({}) to the group({})",u,group.getName());
+                }
+            });
+        }
+    }
     private void doSynchronizeInDomain(Domain domain, Map<Integer, Domain> localDomains) throws IamConnectionException, NotFindMucServiceException, SyncOrgException, GetUserException {
         if (localDomains.containsKey(domain.getId())) {
             logger.info(String.format("Starting update the domain that ID is %d,its name is %s", domain.getId(), domain.getName()));
@@ -201,6 +259,7 @@ public class IamOperate implements Operate,EnvironmentAware{
             Domain save = domainRepository.save(domain);
             doSaveInDomain(save);
             createMucService(save);
+            createGroup(save,true);
         }
     }
 
@@ -209,7 +268,7 @@ public class IamOperate implements Operate,EnvironmentAware{
         List<OrgVo> sources = getAllOrgVoList(IamUtil.getInstance().getOrganizationaList(domain.getId())).stream().sorted(Comparator.comparing(OrgVo::getId)).collect(Collectors.toList());
         List<Org> orgList = new ArrayList<>();
         if (sources != null && !sources.isEmpty()) {
-            sources.forEach((u)->packOrg(orgList, orgDictionary, u, domain.getId()));
+            sources.forEach(u->packOrg(orgList, orgDictionary, u, domain.getId()));
         }
         if (!orgList.isEmpty()) {
             List<Org> orgs = orgRepository.saveAll(orgList);
@@ -246,7 +305,7 @@ public class IamOperate implements Operate,EnvironmentAware{
             for (Org org : needUpdateOrgList) {
                 if (copy.containsKey(org.getSourceId())) {
                     Org save = orgRepository.save(org);
-                    updateUserInSingleOrg(save);
+                    updateUserInSingleOrg(save,domain);
                 } else {
                     Org save = orgRepository.save(org);
                     saveUserInSingleOrg(save, localOrgDictionary, domain);
@@ -258,7 +317,21 @@ public class IamOperate implements Operate,EnvironmentAware{
             for (Long sourceId : needDeleteOrgList) {
                 Org org = localOrgDictionary.get(sourceId);
                 logger.info(String.format("Delete local users of the org(name:%s,id:%d)", org.getName(), org.getSourceId()));
-                userRepository.deleteByOrgId(org.getOrgId());
+                List<User> userList = userRepository.findByOrgId(org.getOrgId());
+                if (!userList.isEmpty()) {
+                    for (User u:userList) {
+                        List<String> groupList = groupService.findAllUserGroupList(u.getUserName());
+                        if (groupList != null && !groupList.isEmpty()) {
+                            try {
+                                groupService.removeUserFromGroups(u.getUserName(),groupList);
+                            } catch (NotFindGroupException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    userRepository.deleteByOrgId(org.getOrgId());
+                }
+
             }
         }
     }
@@ -288,7 +361,7 @@ public class IamOperate implements Operate,EnvironmentAware{
     }
 
 
-    private void updateUserInSingleOrg(Org save) throws IamConnectionException {
+    private void updateUserInSingleOrg(Org save, Domain domain) throws IamConnectionException {
         List<User> localUsers = userRepository.findByOrgId(save.getOrgId());
         List<Long> needDeleteUsers = localUsers.stream().map(u -> u.getSourceId()).collect(Collectors.toList());
         Map<Long, User> collect = localUsers.stream().collect(Collectors.toMap(u -> u.getSourceId(), u -> u));
@@ -304,12 +377,25 @@ public class IamOperate implements Operate,EnvironmentAware{
                 } else {
                     User user = packUser(vo.getId(), save);
                     userRepository.save(user);
+                    try {
+                        groupService.addUserToGroup(user.getUserName(),domain.getName(),true);
+                    } catch (NotFindGroupException e) {
+                        e.printStackTrace();
+                    }
                 }
                 needDeleteUsers.remove(vo.getId());
             }
         }
         if (!needDeleteUsers.isEmpty()) {
-            userRepository.deleteInBatch(needDeleteUsers.stream().map(u ->  collect.get(u)).collect(Collectors.toList()));
+            List<User> users = needDeleteUsers.stream().map(u -> collect.get(u)).collect(Collectors.toList());
+            users.forEach(user -> {
+                try {
+                    groupService.removeUserFromGroups(user.getUserName(),groupService.findAllUserGroupList(user.getUserName()));
+                } catch (NotFindGroupException e) {
+                    e.printStackTrace();
+                }
+            });
+            userRepository.deleteInBatch(users);
         }
     }
 
@@ -340,6 +426,11 @@ public class IamOperate implements Operate,EnvironmentAware{
                 }
                 userRepository.deleteByDomainId(save.getId());
                 orgRepository.deleteByDomainId(save.getId());
+                try {
+                    groupService.deleteGroup(domain.getName());
+                } catch (NotFindGroupException e) {
+                    logger.info("The group({}) does not exist and not require to delete it",domain.getName());
+                }
             }
             if (checkDomainResourceExist(save)){
                 logger.error(String.format("Failed to delete the domain(name:%s,id:%d)",save.getName(),save.getId()));
@@ -391,8 +482,7 @@ public class IamOperate implements Operate,EnvironmentAware{
     }
     private User packUser(Long userId, Org org) {
         User user = new User();
-        /*user.setUserName(JidGenerator.generate(u.getName(),domain.getName()));*/
-        UserVo u = null;
+        UserVo u ;
         try {
             u = IamUtil.getInstance().getUserDetails(userId);
         } catch (IamConnectionException e) {
@@ -401,54 +491,26 @@ public class IamOperate implements Operate,EnvironmentAware{
         }
         user.setUserName(u.getName());
         user.setDomainId(org.getDomainId());
-        /*user.setOrgId(org.getOrgId());*/
         user.setOrg(org);
+        user.setRole(User.Role.user);
         user.setUpdateTime(u.getUpdate_time());
         user.setRegisterDate(u.getAdd_time());
         user.setSortNumber(u.getSort_number());
         user.setUserBirthday(u.getBirthday());
         user.setUserRealName(u.getReal_name());
         user.setUserEmail(u.getEmail());
+        user.setRank(u.getRank());
+        user.setUserMobile2(u.getMobile2());
+        user.setQq(u.getQq());
         user.setUserPhone(u.getTelephone());
         user.setUserMobile(u.getMobile());
-        user.setUserSex(u.getSex());
+        user.setUserSex(u.getSex() == 1? User.Gender.man : User.Gender.women);
         user.setUserState(u.getIs_enabled());
         user.setSourceId(u.getId());
         user.setIamUserHead(u.getHead());
         user.setUserPassword(DigestUtils.sha1Hex(XmppConnectionUtil.defaultPassword.getBytes()));
         return user;
     }
-
-
-   /* private User packUser(Map<Long, Org> orgDictionary, Long userId, Domain domain) {
-        User user = new User();
-        *//*user.setUserName(JidGenerator.generate(u.getName(),domain.getName()));*//*
-        UserVo u = null;
-        try {
-            u = IamUtil.getInstance().getUserDetails(userId);
-        } catch (IamConnectionException e) {
-            logger.error(String.format("Failed to get the user(id:%d) details of the domain(domainName:%s)"),userId,domain.getName());
-           throw new RuntimeException(e);
-        }
-        user.setUserName(u.getName());
-        user.setDomainId(domain.getId());
-        user.setOrgId(orgDictionary.get(u.getOrg_id()).getOrgId());
-        user.setUpdateTime(u.getUpdate_time());
-        user.setRegisterDate(u.getAdd_time());
-        user.setSortNumber(u.getSort_number());
-        user.setUserBirthday(u.getBirthday());
-        user.setUserRealName(u.getReal_name());
-        user.setUserEmail(u.getEmail());
-        user.setUserPhone(u.getTelephone());
-        user.setUserMobile(u.getMobile());
-        user.setUserSex(u.getSex());
-        user.setUserState(u.getIs_enabled());
-        user.setSourceId(u.getId());
-        user.setIamUserHead(u.getHead());
-        user.setUserPassword(DigestUtils.sha1Hex("123456".getBytes()));
-        return user;
-    }*/
-
 
     private void packOrg(List<Org> orgList, Map<Long,Org> orgDictionary,  OrgVo u, Integer domainId) {
         Org org = new Org();

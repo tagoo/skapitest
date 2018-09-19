@@ -29,7 +29,7 @@ public class MucRoomServiceImplTest {
         chatRoom.setAdmins(Arrays.asList("demo1@sunrun"));
         chatRoom.setDefaultProp();
         try {
-            Assert.assertNotNull(mucRoomService.save(chatRoom,"chat", null));
+            Assert.assertNotNull(mucRoomService.save(chatRoom,"chat"));
         } catch (NameAlreadyExistException e) {
             e.printStackTrace();
         }
@@ -44,7 +44,7 @@ public class MucRoomServiceImplTest {
         chatRoom.setOwners(Arrays.asList("zhaoyi@sunrun"));
         chatRoom.setAdmins(Arrays.asList("user3@sunrun","user4@sunrun"));
         try {
-            Assert.assertTrue(mucRoomService.update(chatRoom,"conference", null));
+            Assert.assertTrue(mucRoomService.update(chatRoom,"conference"));
         } catch (NotFindRoomException e) {
             e.printStackTrace();
         }

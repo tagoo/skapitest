@@ -9,6 +9,9 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Configuration
 public class CrossConfig implements WebMvcConfigurer {
     @Bean
@@ -51,6 +54,9 @@ public class CrossConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new LoginInterceptor()).addPathPatterns("/**").excludePathPatterns("/user/admin/login");
+        List<String> paths = new ArrayList<>();
+        paths.add("/user/login");
+        paths.add("/user/admin/login");
+        registry.addInterceptor(new LoginInterceptor()).addPathPatterns("/**").excludePathPatterns(paths);
     }
 }
